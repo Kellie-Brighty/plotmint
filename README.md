@@ -65,6 +65,21 @@ PlotMint is a decentralized storytelling platform where chapters are minted as N
 - Track story progress and engagement metrics
 - Mobile-responsive design with dark mode support
 
+## User Dashboards
+
+PlotMint includes two comprehensive dashboards for different user roles:
+
+### Reader Dashboard
+- **Collections Tab**: View and manage all collected story chapters
+- **Reading History**: Track reading progress across multiple stories
+- **Voting History**: Review previous story direction votes
+- **Notifications**: Stay updated on new chapters and story developments
+
+### Creator Dashboard
+- **Story Management**: Create, edit, and manage interactive stories
+- **Analytics**: Track reader engagement, collections, and revenue
+- **Chapter Drafts**: Manage in-progress chapters and publishing workflow
+
 ## Scroll-to-Top Behavior
 
 The application implements a scroll-to-top mechanism using React Router. When users navigate between pages, the `ScrollToTop` component automatically scrolls the window to the top, providing a better user experience.

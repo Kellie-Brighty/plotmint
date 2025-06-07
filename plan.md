@@ -1,12 +1,15 @@
 # PlotMint Frontend Development Roadmap
 
-## 1. Core Functionality (2-3 weeks)
+## 1. Core Functionality (2-3 weeks) ✅
+
 - **Story Browsing Page**
+
   - Grid/list view of available stories
   - Filtering and sorting options
   - Story preview cards with cover art
 
 - **Story Detail Page**
+
   - Story overview with metadata
   - Chapter navigation
   - Author information
@@ -17,8 +20,10 @@
   - Voting interface at chapter ends
   - Collectible visualization
 
-## 2. Web3 Integration (1-2 weeks)
+## 2. Web3 Integration (Postponed)
+
 - **Wallet Connection**
+
   - Multiple wallet support (MetaMask, WalletConnect)
   - Account display in navbar
   - Authentication flow
@@ -28,8 +33,10 @@
   - Transaction confirmation modals
   - Gas fee estimation
 
-## 3. User Dashboards (2 weeks)
+## 3. User Dashboards (2 weeks) ✅
+
 - **Reader Dashboard**
+
   - Collection of minted chapters
   - Reading history
   - Voting history
@@ -41,8 +48,10 @@
   - Chapter creation interface
   - Plot branch management
 
-## 4. Community Features (1-2 weeks)
+## 4. Community Features (Current Focus)
+
 - **Profile Pages**
+
   - Public profiles for readers and creators
   - Collection showcase
   - Activity feed
@@ -53,11 +62,14 @@
   - Trending stories/chapters
 
 ## 5. Polish & Launch Preparation (2 weeks)
+
 - **Responsive Testing**
+
   - Cross-browser compatibility
   - Mobile optimization refinements
 
 - **Performance Optimization**
+
   - Lazy loading
   - Image optimization
   - Bundle size reduction

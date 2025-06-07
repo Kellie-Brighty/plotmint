@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "./ui/Button";
 
@@ -10,7 +10,9 @@ interface NavbarProps {
 const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const location = useLocation();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Handle scroll effect
   useEffect(() => {
@@ -31,7 +33,25 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
   // Close mobile menu when route changes
   useEffect(() => {
     setIsOpen(false);
+    setIsDropdownOpen(false);
   }, [location.pathname]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
@@ -140,12 +160,65 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
                 )}
               </button>
 
-              <Button variant="outline" size="sm">
-                Connect Wallet
-              </Button>
-              <Button variant="primary" size="sm">
-                Start Writing
-              </Button>
+              {/* Dropdown menu for dashboards */}
+              <div className="relative" ref={dropdownRef}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                >
+                  <span>Connect Wallet</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`ml-2 h-4 w-4 transform transition-transform ${
+                      isDropdownOpen ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </Button>
+
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-dark-800 rounded-md shadow-lg border border-parchment-200 dark:border-dark-700 z-10">
+                    <div className="py-1">
+                      <Link
+                        to="/dashboard"
+                        className="block px-4 py-2 text-sm text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-700"
+                      >
+                        Reader Dashboard
+                      </Link>
+                      <Link
+                        to="/creator"
+                        className="block px-4 py-2 text-sm text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-700"
+                      >
+                        Creator Studio
+                      </Link>
+                      <hr className="my-1 border-parchment-200 dark:border-dark-700" />
+                      <Link
+                        to="/creator/new-story"
+                        className="block px-4 py-2 text-sm text-primary-600 dark:text-primary-400 hover:bg-parchment-100 dark:hover:bg-dark-700"
+                      >
+                        Create New Story
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Link to="/creator/new-story">
+                <Button variant="primary" size="sm">
+                  Start Writing
+                </Button>
+              </Link>
             </div>
           </div>
 
@@ -229,55 +302,77 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
         </div>
       </div>
 
-      {/* Mobile Navigation */}
+      {/* Mobile menu */}
       {isOpen && (
-        <div className="md:hidden fixed inset-x-0 top-[72px] bottom-0 bg-white dark:bg-dark-900 z-50 overflow-y-auto">
-          <div className="px-4 py-6 space-y-6">
-            <div className="flex flex-col space-y-4">
-              <Link
-                to="/"
-                className={`text-base font-medium px-3 py-2 rounded-md ${
-                  location.pathname === "/"
-                    ? "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
-                    : "text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
-                }`}
-              >
-                Home
-              </Link>
-              <Link
-                to="/stories"
-                className={`text-base font-medium px-3 py-2 rounded-md ${
-                  location.pathname.includes("/stories")
-                    ? "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
-                    : "text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
-                }`}
-              >
-                Explore Stories
-              </Link>
-              <a
-                href="#"
-                className="text-base font-medium px-3 py-2 rounded-md text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
-              >
-                How It Works
-              </a>
-              <a
-                href="#"
-                className="text-base font-medium px-3 py-2 rounded-md text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
-              >
-                For Creators
-              </a>
-            </div>
-
-            <div className="pt-6 border-t border-parchment-200 dark:border-dark-700">
-              <div className="flex flex-col space-y-3">
-                <Button variant="outline" size="md" fullWidth>
-                  Connect Wallet
-                </Button>
-                <Button variant="primary" size="md" fullWidth>
-                  Start Writing
-                </Button>
-              </div>
-            </div>
+        <div className="md:hidden bg-white dark:bg-dark-900 shadow-lg border-t border-parchment-200 dark:border-dark-700">
+          <div className="px-2 pt-2 pb-3 space-y-1">
+            <Link
+              to="/"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                location.pathname === "/"
+                  ? "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
+                  : "text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
+              }`}
+            >
+              Home
+            </Link>
+            <Link
+              to="/stories"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                location.pathname.includes("/stories")
+                  ? "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
+                  : "text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
+              }`}
+            >
+              Explore Stories
+            </Link>
+            <Link
+              to="/dashboard"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                location.pathname === "/dashboard"
+                  ? "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
+                  : "text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
+              }`}
+            >
+              Reader Dashboard
+            </Link>
+            <Link
+              to="/creator"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                location.pathname === "/creator"
+                  ? "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
+                  : "text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
+              }`}
+            >
+              Creator Studio
+            </Link>
+            <Link
+              to="/creator/new-story"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                location.pathname === "/creator/new-story"
+                  ? "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
+                  : "text-primary-600 dark:text-primary-400 hover:bg-parchment-100 dark:hover:bg-dark-800"
+              }`}
+            >
+              Create New Story
+            </Link>
+            <a
+              href="#"
+              className="block px-3 py-2 rounded-md text-base font-medium text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
+            >
+              How It Works
+            </a>
+            <a
+              href="#"
+              className="block px-3 py-2 rounded-md text-base font-medium text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
+            >
+              For Creators
+            </a>
+          </div>
+          <div className="px-4 py-3 border-t border-parchment-200 dark:border-dark-700">
+            <Button variant="primary" fullWidth>
+              Connect Wallet
+            </Button>
           </div>
         </div>
       )}
