@@ -32,11 +32,13 @@ const Layout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-parchment-50 dark:bg-dark-950 text-ink-900 dark:text-white overflow-x-hidden max-w-[100vw]">
+    <div className="min-h-screen bg-parchment-50 dark:bg-dark-950 text-ink-900 dark:text-white">
       <Navbar theme={theme} toggleTheme={toggleTheme} />
-      <main className="w-full overflow-hidden">
-        <Outlet />
-      </main>
+      <div className="content-wrapper">
+        <main>
+          <Outlet />
+        </main>
+      </div>
       <Footer />
     </div>
   );

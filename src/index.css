@@ -109,6 +109,10 @@
     @apply px-4 md:px-6 mx-auto max-w-7xl;
   }
 
+  .content-wrapper {
+    @apply w-full max-w-[1440px] mx-auto px-2 sm:px-2 md:px-8;
+  }
+
   .btn {
     @apply inline-flex items-center justify-center rounded-md px-4 py-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 disabled:opacity-50;
   }

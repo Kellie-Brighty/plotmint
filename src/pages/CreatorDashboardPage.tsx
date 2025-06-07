@@ -694,90 +694,58 @@ const CreatorDashboardPage = () => {
   };
 
   return (
-    <div className="bg-parchment-50 dark:bg-dark-950 min-h-screen pt-24 pb-16">
-      <div className="container mx-auto px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Page Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-10"
-          >
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-              <div className="mb-4 md:mb-0">
-                <h1 className="text-3xl md:text-4xl font-display font-bold text-ink-900 dark:text-white mb-2">
-                  Creator Studio
-                </h1>
-                <p className="text-lg text-ink-600 dark:text-ink-300">
-                  Manage your stories, track performance, and create new
-                  chapters.
-                </p>
-              </div>
-              <Button variant="primary">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 mr-2"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                New Story
-              </Button>
-            </div>
-          </motion.div>
+    <div className="min-h-screen bg-parchment-50 dark:bg-dark-950 pt-24 pb-16">
+      <div className="content-wrapper">
+        {/* Dashboard Content */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8"
+        >
+          <h1 className="text-2xl md:text-3xl font-display font-bold text-ink-900 dark:text-white mb-2">
+            Creator Dashboard
+          </h1>
+          <p className="text-ink-600 dark:text-ink-300">
+            Manage your stories, track performance, and grow your audience.
+          </p>
+        </motion.div>
 
-          {/* Navigation Tabs */}
-          <div className="mb-8 border-b border-parchment-200 dark:border-dark-700">
-            <nav className="flex overflow-x-auto pb-px" aria-label="Tabs">
-              <button
-                onClick={() => setActiveTab("stories")}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm mr-8 ${
-                  activeTab === "stories"
-                    ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
-                    : "border-transparent text-ink-600 dark:text-ink-300 hover:text-ink-900 dark:hover:text-white hover:border-ink-300 dark:hover:border-dark-600"
-                }`}
-              >
-                Story Management
-              </button>
-              <button
-                onClick={() => setActiveTab("analytics")}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm mr-8 ${
-                  activeTab === "analytics"
-                    ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
-                    : "border-transparent text-ink-600 dark:text-ink-300 hover:text-ink-900 dark:hover:text-white hover:border-ink-300 dark:hover:border-dark-600"
-                }`}
-              >
-                Analytics
-              </button>
-              <button
-                onClick={() => setActiveTab("chapters")}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "chapters"
-                    ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
-                    : "border-transparent text-ink-600 dark:text-ink-300 hover:text-ink-900 dark:hover:text-white hover:border-ink-300 dark:hover:border-dark-600"
-                }`}
-              >
-                Chapter Drafts
-              </button>
-            </nav>
+        {/* Dashboard Tabs */}
+        <div className="bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700 mb-8">
+          <div className="flex border-b border-parchment-200 dark:border-dark-700">
+            <button
+              className={`px-4 py-3 text-sm font-medium ${
+                activeTab === "stories"
+                  ? "text-primary-600 border-b-2 border-primary-600 dark:text-primary-400 dark:border-primary-400"
+                  : "text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white"
+              }`}
+              onClick={() => setActiveTab("stories")}
+            >
+              My Stories
+            </button>
+            <button
+              className={`px-4 py-3 text-sm font-medium ${
+                activeTab === "chapters"
+                  ? "text-primary-600 border-b-2 border-primary-600 dark:text-primary-400 dark:border-primary-400"
+                  : "text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white"
+              }`}
+              onClick={() => setActiveTab("chapters")}
+            >
+              Chapter Drafts
+            </button>
+            <button
+              className={`px-4 py-3 text-sm font-medium ${
+                activeTab === "analytics"
+                  ? "text-primary-600 border-b-2 border-primary-600 dark:text-primary-400 dark:border-primary-400"
+                  : "text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white"
+              }`}
+              onClick={() => setActiveTab("analytics")}
+            >
+              Analytics
+            </button>
           </div>
-
-          {/* Tab Content */}
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="mb-12"
-          >
-            {renderTabContent()}
-          </motion.div>
+          <div className="p-4 sm:p-6 md:p-8">{renderTabContent()}</div>
         </div>
       </div>
     </div>

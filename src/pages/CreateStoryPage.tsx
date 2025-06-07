@@ -204,8 +204,14 @@ const CreateStoryPage = () => {
       // In a real app, this would send data to the server
       console.log("Submitting story:", formData);
 
-      // Navigate to the creator dashboard
-      navigate("/creator");
+      // Instead of going to the dashboard, navigate to the first chapter creation page
+      // We'll pass the story data as state to use in the chapter editor
+      navigate("/creator/new-chapter", {
+        state: {
+          newStory: true,
+          storyData: formData,
+        },
+      });
     }
   };
 

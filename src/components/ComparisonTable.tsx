@@ -180,7 +180,7 @@ const ComparisonTable = () => {
 
   return (
     <section className="py-16 md:py-20 bg-parchment-50 dark:bg-dark-950 w-full">
-      <div className="container mx-auto">
+      <div className="content-wrapper">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

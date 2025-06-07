@@ -9,6 +9,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import ReaderDashboardPage from "./pages/ReaderDashboardPage";
 import CreatorDashboardPage from "./pages/CreatorDashboardPage";
 import CreateStoryPage from "./pages/CreateStoryPage";
+import ChapterEditorPage from "./pages/ChapterEditorPage";
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
           <Route path="dashboard" element={<ReaderDashboardPage />} />
           <Route path="creator" element={<CreatorDashboardPage />} />
           <Route path="creator/new-story" element={<CreateStoryPage />} />
+          <Route path="creator/new-chapter" element={<ChapterEditorPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

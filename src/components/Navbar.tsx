@@ -73,7 +73,7 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
           : "bg-transparent"
       }`}
     >
-      <div className="container mx-auto px-4 sm:px-6">
+      <div className="content-wrapper">
         <div className="flex justify-between items-center py-4">
           {/* Logo */}
           <Link

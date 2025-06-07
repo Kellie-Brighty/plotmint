@@ -10,8 +10,8 @@ const Hero = () => {
         <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-secondary-300 dark:bg-secondary-600 rounded-full filter blur-3xl"></div>
       </div>
 
-      <div className="container relative z-10">
-        <div className="max-w-3xl mx-auto text-center mb-10 md:mb-16 px-4 sm:px-6">
+      <div className="content-wrapper relative z-10">
+        <div className="max-w-3xl mx-auto text-center mb-10 md:mb-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

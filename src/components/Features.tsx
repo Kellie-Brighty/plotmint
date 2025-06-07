@@ -132,8 +132,8 @@ const Features = () => {
 
   return (
     <section className="py-16 md:py-20 bg-white dark:bg-dark-950 w-full">
-      <div className="container mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-10 md:mb-16 px-4 sm:px-6">
+      <div className="content-wrapper">
+        <div className="text-center max-w-3xl mx-auto mb-10 md:mb-16">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-ink-900 dark:text-white mb-4 md:mb-6">
             What Makes PlotMint Uniquely Powerful
           </h2>
@@ -143,7 +143,7 @@ const Features = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 lg:gap-8 px-4 sm:px-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 lg:gap-8">
           {features.map((feature, index) => (
             <motion.div
               key={index}
