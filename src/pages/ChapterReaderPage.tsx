@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "../components/ui/Button";
@@ -67,13 +67,8 @@ const MOCK_STORY = {
   chapterCount: 7,
 };
 
-// Function to get avatar image
-const getAvatarUrl = (authorName: string) => {
-  return `https://i.pravatar.cc/150?u=${authorName.replace(/\s+/g, "")}`;
-};
-
 const ChapterReaderPage = () => {
-  const { storyId, chapterId } = useParams<{
+  const { storyId } = useParams<{
     storyId: string;
     chapterId: string;
   }>();

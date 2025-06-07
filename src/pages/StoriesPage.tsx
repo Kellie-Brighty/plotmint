@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import StoryCard from "../components/story/StoryCard";
 import StoryFilter from "../components/story/StoryFilter";

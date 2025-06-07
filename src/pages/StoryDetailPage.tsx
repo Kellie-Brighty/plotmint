@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "../components/ui/Button";
 
@@ -106,7 +106,7 @@ const getAvatarUrl = (authorName: string) => {
 };
 
 const StoryDetailPage = () => {
-  const { storyId } = useParams<{ storyId: string }>();
+  // const { storyId } = useParams<{ storyId: string }>();
   const [activeTab, setActiveTab] = useState<"overview" | "chapters">(
     "overview"
   );
