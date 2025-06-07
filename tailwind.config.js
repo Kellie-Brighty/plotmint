@@ -1,0 +1,105 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: "#fdf8f6",
+          100: "#f2e8e5",
+          200: "#eaddd7",
+          300: "#e0cec7",
+          400: "#d2bab0",
+          500: "#bfa094",
+          600: "#a18072",
+          700: "#86624e",
+          800: "#684d3d",
+          900: "#513c30",
+          950: "#2b211c",
+        },
+        secondary: {
+          50: "#fcf9f1",
+          100: "#f5eed5",
+          200: "#e9d9ac",
+          300: "#dec27f",
+          400: "#d1a655",
+          500: "#c48e38",
+          600: "#ab712d",
+          700: "#8e5829",
+          800: "#734527",
+          900: "#5f3923",
+          950: "#321c12",
+        },
+        ink: {
+          50: "#f9f7f5",
+          100: "#f1ece7",
+          200: "#e2d9d0",
+          300: "#d0bfb0",
+          400: "#b7a090",
+          500: "#a38776",
+          600: "#8c6c5a",
+          700: "#735748",
+          800: "#604941",
+          900: "#503e38",
+          950: "#2a201d",
+        },
+        parchment: {
+          50: "#fef9ee",
+          100: "#fcefd6",
+          200: "#f8deac",
+          300: "#f4ca7b",
+          400: "#efb14c",
+          500: "#e99527",
+          600: "#d7771d",
+          700: "#b25b1a",
+          800: "#8e471b",
+          900: "#743b1a",
+          950: "#3f1d0c",
+        },
+        dark: {
+          50: "#f6f3f1",
+          100: "#e4dcd5",
+          200: "#cbbfb2",
+          300: "#b3a189",
+          400: "#9d866a",
+          500: "#8c7358",
+          600: "#735c48",
+          700: "#5d493b",
+          800: "#4b3b31",
+          900: "#3e3229",
+          950: "#211b16",
+        },
+      },
+      fontFamily: {
+        sans: ['"Satoshi"', '"Plus Jakarta Sans"', "system-ui", "sans-serif"],
+        display: ['"Fraunces"', "serif"],
+        serif: ['"Lora"', "Georgia", "serif"],
+        mono: ['"Fira Code"', "monospace"],
+      },
+      typography: {
+        DEFAULT: {
+          css: {
+            maxWidth: "65ch",
+            color: "var(--tw-prose-body)",
+            "h1, h2, h3, h4, h5, h6": {
+              fontFamily: "Playfair Display, Georgia, serif",
+            },
+          },
+        },
+      },
+      boxShadow: {
+        soft: "0 4px 20px rgba(0, 0, 0, 0.05)",
+        chapter:
+          "0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)",
+        "dark-soft": "0 4px 20px rgba(0, 0, 0, 0.2)",
+        "dark-chapter":
+          "0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)",
+      },
+      backgroundImage: {
+        "paper-texture": "url('/img/paper-texture.png')",
+      },
+    },
+  },
+  plugins: [],
+};
