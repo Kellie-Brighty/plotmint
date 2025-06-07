@@ -9,9 +9,6 @@ import Footer from "../components/Footer";
 
 const LandingPage = () => {
   useEffect(() => {
-    // Scroll to top when the page loads
-    window.scrollTo(0, 0);
-
     // Set page title
     document.title = "PlotMint - Decentralized Storytelling Platform";
   }, []);

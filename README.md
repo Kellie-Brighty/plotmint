@@ -24,31 +24,70 @@ export default tseslint.config({
   languageOptions: {
     // other options...
     parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
+      project: ["./tsconfig.node.json", "./tsconfig.app.json"],
       tsconfigRootDir: import.meta.dirname,
     },
   },
-})
+});
 ```
 
 You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
 ```js
 // eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+import reactX from "eslint-plugin-react-x";
+import reactDom from "eslint-plugin-react-dom";
 
 export default tseslint.config({
   plugins: {
     // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
+    "react-x": reactX,
+    "react-dom": reactDom,
   },
   rules: {
     // other rules...
     // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
+    ...reactX.configs["recommended-typescript"].rules,
     ...reactDom.configs.recommended.rules,
   },
-})
+});
 ```
+
+# PlotMint
+
+PlotMint is a decentralized storytelling platform where chapters are minted as NFTs and readers influence stories through voting.
+
+## Features
+
+- Create and explore interactive stories
+- Vote on story direction to influence the narrative
+- Collect chapters as NFTs
+- Track story progress and engagement metrics
+- Mobile-responsive design with dark mode support
+
+## Scroll-to-Top Behavior
+
+The application implements a scroll-to-top mechanism using React Router. When users navigate between pages, the `ScrollToTop` component automatically scrolls the window to the top, providing a better user experience.
+
+This behavior is implemented globally and doesn't require individual components to manage their own scroll position. The component leverages React Router's `useLocation` hook to detect route changes.
+
+## Development
+
+### Prerequisites
+
+- Node.js (v14 or higher)
+- npm or yarn
+
+### Setup
+
+1. Clone the repository
+2. Install dependencies: `npm install` or `yarn`
+3. Start development server: `npm run dev` or `yarn dev`
+
+## Built With
+
+- React
+- TypeScript
+- React Router
+- Framer Motion
+- Tailwind CSS
