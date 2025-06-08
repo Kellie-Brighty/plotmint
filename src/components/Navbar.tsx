@@ -107,6 +107,16 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
               >
                 Explore Stories
               </Link>
+              <Link
+                to="/discover"
+                className={`text-sm font-medium ${
+                  location.pathname.includes("/discover")
+                    ? "text-primary-600 dark:text-primary-400"
+                    : "text-ink-700 dark:text-ink-200 hover:text-primary-600 dark:hover:text-primary-400"
+                }`}
+              >
+                Discover
+              </Link>
               <a
                 href="#"
                 className="text-sm font-medium text-ink-700 dark:text-ink-200 hover:text-primary-600 dark:hover:text-primary-400"
@@ -201,6 +211,12 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
                         className="block px-4 py-2 text-sm text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-700"
                       >
                         Creator Studio
+                      </Link>
+                      <Link
+                        to="/profile/user1"
+                        className="block px-4 py-2 text-sm text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-700"
+                      >
+                        My Profile
                       </Link>
                       <hr className="my-1 border-parchment-200 dark:border-dark-700" />
                       <Link
@@ -327,38 +343,22 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
               Explore Stories
             </Link>
             <Link
-              to="/dashboard"
+              to="/discover"
               className={`block px-3 py-2 rounded-md text-base font-medium ${
-                location.pathname === "/dashboard"
+                location.pathname.includes("/discover")
                   ? "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
                   : "text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
               }`}
             >
-              Reader Dashboard
-            </Link>
-            <Link
-              to="/creator"
-              className={`block px-3 py-2 rounded-md text-base font-medium ${
-                location.pathname === "/creator"
-                  ? "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
-                  : "text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
-              }`}
-            >
-              Creator Studio
-            </Link>
-            <Link
-              to="/creator/new-story"
-              className={`block px-3 py-2 rounded-md text-base font-medium ${
-                location.pathname === "/creator/new-story"
-                  ? "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
-                  : "text-primary-600 dark:text-primary-400 hover:bg-parchment-100 dark:hover:bg-dark-800"
-              }`}
-            >
-              Create New Story
+              Discover
             </Link>
             <a
               href="#"
-              className="block px-3 py-2 rounded-md text-base font-medium text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                location.pathname === "/"
+                  ? "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
+                  : "text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
+              }`}
             >
               How It Works
             </a>

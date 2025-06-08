@@ -10,6 +10,8 @@ import ReaderDashboardPage from "./pages/ReaderDashboardPage";
 import CreatorDashboardPage from "./pages/CreatorDashboardPage";
 import CreateStoryPage from "./pages/CreateStoryPage";
 import ChapterEditorPage from "./pages/ChapterEditorPage";
+import ProfilePage from "./pages/ProfilePage";
+import DiscoveryPage from "./pages/DiscoveryPage";
 
 function App() {
   return (
@@ -28,6 +30,8 @@ function App() {
           <Route path="creator" element={<CreatorDashboardPage />} />
           <Route path="creator/new-story" element={<CreateStoryPage />} />
           <Route path="creator/new-chapter" element={<ChapterEditorPage />} />
+          <Route path="profile/:userId" element={<ProfilePage />} />
+          <Route path="discover" element={<DiscoveryPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

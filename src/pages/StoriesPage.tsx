@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import StoryCard from "../components/story/StoryCard";
 import StoryFilter from "../components/story/StoryFilter";
+import { Link } from "react-router-dom";
 
 // Temporary mock data for stories
 const MOCK_STORIES = [
@@ -120,66 +121,70 @@ const StoriesPage = () => {
       : MOCK_STORIES.filter((story) => story.genre === activeFilter);
 
   return (
-    <div className="bg-parchment-50 dark:bg-dark-950 min-h-screen pt-24 pb-16">
-      <div className="container mx-auto px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Page Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-10 md:mb-12"
-          >
-            <h1 className="text-3xl md:text-4xl font-display font-bold text-ink-900 dark:text-white mb-4">
-              Explore Stories
-            </h1>
-            <p className="text-lg text-ink-700 dark:text-ink-200 max-w-3xl">
-              Discover interactive stories where your choices shape the
-              narrative. Collect chapters, vote on plot directions, and join a
-              community of storytellers.
+    <div className="min-h-screen bg-parchment-50 dark:bg-dark-950 pt-24 pb-16">
+      <div className="content-wrapper">
+        {/* Page Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8"
+        >
+          <h1 className="text-2xl md:text-3xl font-display font-bold text-ink-900 dark:text-white mb-2">
+            Explore Stories
+          </h1>
+          <p className="text-ink-600 dark:text-ink-300 flex items-center">
+            Discover interactive stories where your choices shape the narrative.
+            Collect chapters, vote on plot directions, and join a community of
+            storytellers.
+            <Link
+              to="/discover"
+              className="ml-2 text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              Try advanced discovery
+            </Link>
+          </p>
+        </motion.div>
+
+        {/* Filters and Sorting */}
+        <StoryFilter
+          genres={GENRE_FILTERS}
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+          sortOptions={SORT_OPTIONS}
+          activeSort={activeSort}
+          onSortChange={setActiveSort}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
+
+        {/* Stories Grid */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className={`grid ${
+            viewMode === "grid"
+              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
+              : "grid-cols-1 gap-4"
+          } mt-8`}
+        >
+          {filteredStories.map((story) => (
+            <StoryCard key={story.id} story={story} viewMode={viewMode} />
+          ))}
+        </motion.div>
+
+        {/* Empty State */}
+        {filteredStories.length === 0 && (
+          <div className="text-center py-16">
+            <h3 className="text-xl font-display font-medium text-ink-700 dark:text-ink-300 mb-2">
+              No stories found
+            </h3>
+            <p className="text-ink-600 dark:text-ink-400">
+              Try adjusting your filters or check back later for new stories
             </p>
-          </motion.div>
-
-          {/* Filters and Sorting */}
-          <StoryFilter
-            genres={GENRE_FILTERS}
-            activeFilter={activeFilter}
-            onFilterChange={setActiveFilter}
-            sortOptions={SORT_OPTIONS}
-            activeSort={activeSort}
-            onSortChange={setActiveSort}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
-
-          {/* Stories Grid */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className={`grid ${
-              viewMode === "grid"
-                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
-                : "grid-cols-1 gap-4"
-            } mt-8`}
-          >
-            {filteredStories.map((story) => (
-              <StoryCard key={story.id} story={story} viewMode={viewMode} />
-            ))}
-          </motion.div>
-
-          {/* Empty State */}
-          {filteredStories.length === 0 && (
-            <div className="text-center py-16">
-              <h3 className="text-xl font-display font-medium text-ink-700 dark:text-ink-300 mb-2">
-                No stories found
-              </h3>
-              <p className="text-ink-600 dark:text-ink-400">
-                Try adjusting your filters or check back later for new stories
-              </p>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

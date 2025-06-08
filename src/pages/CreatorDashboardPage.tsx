@@ -706,8 +706,11 @@ const CreatorDashboardPage = () => {
           <h1 className="text-2xl md:text-3xl font-display font-bold text-ink-900 dark:text-white mb-2">
             Creator Dashboard
           </h1>
-          <p className="text-ink-600 dark:text-ink-300">
+          <p className="text-ink-600 dark:text-ink-300 flex items-center">
             Manage your stories, track performance, and grow your audience.
+            <Link to="/profile/user1" className="ml-2 text-primary-600 dark:text-primary-400 hover:underline">
+              View your profile
+            </Link>
           </p>
         </motion.div>
 

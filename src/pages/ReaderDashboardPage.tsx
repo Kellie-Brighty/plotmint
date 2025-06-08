@@ -541,105 +541,89 @@ const ReaderDashboardPage = () => {
   };
 
   return (
-    <div className="bg-parchment-50 dark:bg-dark-950 min-h-screen pt-24 pb-16">
-      <div className="container mx-auto px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Page Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-10"
-          >
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-              <div className="mb-4 md:mb-0">
-                <h1 className="text-3xl md:text-4xl font-display font-bold text-ink-900 dark:text-white mb-2">
-                  My Dashboard
-                </h1>
-                <p className="text-lg text-ink-600 dark:text-ink-300">
-                  Manage your collections, reading history, and notifications.
-                </p>
-              </div>
-              <Link to="/stories" className="self-start">
-                <Button variant="outline">
-                  <span className="mr-2">Explore Stories</span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </Button>
-              </Link>
-            </div>
-          </motion.div>
+    <div className="min-h-screen bg-parchment-50 dark:bg-dark-950 pt-24 pb-16">
+      <div className="content-wrapper">
+        {/* Page Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8"
+        >
+          <h1 className="text-2xl md:text-3xl font-display font-bold text-ink-900 dark:text-white mb-2">
+            Reader Dashboard
+          </h1>
+          <p className="text-ink-600 dark:text-ink-300 flex items-center">
+            Track your collection, reading progress, and voting history.
+            <Link
+              to="/profile/user2"
+              className="ml-2 text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              View your profile
+            </Link>
+          </p>
+        </motion.div>
 
-          {/* Navigation Tabs */}
-          <div className="mb-8 border-b border-parchment-200 dark:border-dark-700">
-            <nav className="flex overflow-x-auto pb-px" aria-label="Tabs">
-              <button
-                onClick={() => setActiveTab("collections")}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm mr-8 ${
-                  activeTab === "collections"
-                    ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
-                    : "border-transparent text-ink-600 dark:text-ink-300 hover:text-ink-900 dark:hover:text-white hover:border-ink-300 dark:hover:border-dark-600"
-                }`}
-              >
-                My Collections
-              </button>
-              <button
-                onClick={() => setActiveTab("reading")}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm mr-8 ${
-                  activeTab === "reading"
-                    ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
-                    : "border-transparent text-ink-600 dark:text-ink-300 hover:text-ink-900 dark:hover:text-white hover:border-ink-300 dark:hover:border-dark-600"
-                }`}
-              >
-                Reading History
-              </button>
-              <button
-                onClick={() => setActiveTab("voting")}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm mr-8 ${
-                  activeTab === "voting"
-                    ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
-                    : "border-transparent text-ink-600 dark:text-ink-300 hover:text-ink-900 dark:hover:text-white hover:border-ink-300 dark:hover:border-dark-600"
-                }`}
-              >
-                Voting History
-              </button>
-              <button
-                onClick={() => setActiveTab("notifications")}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "notifications"
-                    ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
-                    : "border-transparent text-ink-600 dark:text-ink-300 hover:text-ink-900 dark:hover:text-white hover:border-ink-300 dark:hover:border-dark-600"
-                }`}
-              >
-                Notifications
-                <span className="ml-2 bg-primary-600 dark:bg-primary-400 text-white text-xs rounded-full w-5 h-5 inline-flex items-center justify-center">
-                  1
+        {/* Tabs */}
+        <div className="mb-6 border-b border-parchment-200 dark:border-dark-700">
+          <div className="flex flex-wrap -mb-px">
+            <button
+              className={`mr-8 py-4 px-1 text-sm font-medium border-b-2 ${
+                activeTab === "collections"
+                  ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
+                  : "border-transparent text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-200"
+              }`}
+              onClick={() => setActiveTab("collections")}
+            >
+              Collections
+            </button>
+            <button
+              className={`mr-8 py-4 px-1 text-sm font-medium border-b-2 ${
+                activeTab === "reading"
+                  ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
+                  : "border-transparent text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-200"
+              }`}
+              onClick={() => setActiveTab("reading")}
+            >
+              Reading History
+            </button>
+            <button
+              className={`mr-8 py-4 px-1 text-sm font-medium border-b-2 ${
+                activeTab === "voting"
+                  ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
+                  : "border-transparent text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-200"
+              }`}
+              onClick={() => setActiveTab("voting")}
+            >
+              Voting History
+            </button>
+            <button
+              className={`py-4 px-1 text-sm font-medium border-b-2 ${
+                activeTab === "notifications"
+                  ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
+                  : "border-transparent text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-200"
+              }`}
+              onClick={() => setActiveTab("notifications")}
+            >
+              Notifications
+              {MOCK_NOTIFICATIONS.filter((notif) => !notif.read).length > 0 && (
+                <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-primary-600 dark:bg-primary-500 rounded-full">
+                  {MOCK_NOTIFICATIONS.filter((notif) => !notif.read).length}
                 </span>
-              </button>
-            </nav>
+              )}
+            </button>
           </div>
-
-          {/* Tab Content */}
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="mb-12"
-          >
-            {renderTabContent()}
-          </motion.div>
         </div>
+
+        {/* Tab Content */}
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {renderTabContent()}
+        </motion.div>
       </div>
     </div>
   );
