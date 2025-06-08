@@ -12,30 +12,73 @@ import CreateStoryPage from "./pages/CreateStoryPage";
 import ChapterEditorPage from "./pages/ChapterEditorPage";
 import ProfilePage from "./pages/ProfilePage";
 import DiscoveryPage from "./pages/DiscoveryPage";
+import { AuthProvider } from "./utils/AuthContext";
+import PrivateRoute from "./components/auth/PrivateRoute";
 
 function App() {
   return (
-    <BrowserRouter>
-      <ScrollToTop />
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<HomePage />} />
-          <Route path="stories" element={<StoriesPage />} />
-          <Route path="stories/:storyId" element={<StoryDetailPage />} />
-          <Route
-            path="stories/:storyId/chapters/:chapterId"
-            element={<ChapterReaderPage />}
-          />
-          <Route path="dashboard" element={<ReaderDashboardPage />} />
-          <Route path="creator" element={<CreatorDashboardPage />} />
-          <Route path="creator/new-story" element={<CreateStoryPage />} />
-          <Route path="creator/new-chapter" element={<ChapterEditorPage />} />
-          <Route path="profile/:userId" element={<ProfilePage />} />
-          <Route path="discover" element={<DiscoveryPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <ScrollToTop />
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<HomePage />} />
+            <Route path="stories" element={<StoriesPage />} />
+            <Route path="stories/:storyId" element={<StoryDetailPage />} />
+            <Route
+              path="stories/:storyId/chapters/:chapterId"
+              element={
+                <PrivateRoute>
+                  <ChapterReaderPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="dashboard"
+              element={
+                <PrivateRoute>
+                  <ReaderDashboardPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="creator"
+              element={
+                <PrivateRoute>
+                  <CreatorDashboardPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="creator/new-story"
+              element={
+                <PrivateRoute>
+                  <CreateStoryPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="creator/new-chapter"
+              element={
+                <PrivateRoute>
+                  <ChapterEditorPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="profile/:userId"
+              element={
+                <PrivateRoute>
+                  <ProfilePage />
+                </PrivateRoute>
+              }
+            />
+            <Route path="discover" element={<DiscoveryPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

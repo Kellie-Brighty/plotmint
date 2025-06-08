@@ -20,15 +20,16 @@
   - Voting interface at chapter ends
   - Collectible visualization
 
-## 2. Web3 Integration (Postponed)
+## 2. Web3 Integration (Partially Implemented)
 
-- **Wallet Connection**
+- **Wallet Connection** (Current Focus)
 
-  - Multiple wallet support (MetaMask, WalletConnect)
+  - Multiple wallet support (MetaMask, WalletConnect, Coinbase)
   - Account display in navbar
   - Authentication flow
+  - Connection to Zora network
 
-- **Minting Integration**
+- **Minting Integration** (Postponed)
   - Chapter minting interface
   - Transaction confirmation modals
   - Gas fee estimation
@@ -61,7 +62,35 @@
   - Tags and categories
   - Trending stories/chapters
 
-## 5. Polish & Launch Preparation (2 weeks)
+## 5. Firebase Backend Integration (New Priority)
+
+- **Authentication & User Management**
+
+  - User registration and login
+  - Profile data storage
+  - Session management
+  - Wallet address association
+
+- **Content Storage**
+
+  - Story and chapter content
+  - Metadata and media assets
+  - Draft management
+  - Version control
+
+- **Database Structure**
+
+  - User collections and reading history
+  - Voting records and analytics
+  - Notification system
+  - Search indexing
+
+- **Security Rules**
+  - Content access permissions
+  - User data protection
+  - API endpoint security
+
+## 6. Polish & Launch Preparation (2 weeks)
 
 - **Responsive Testing**
 
