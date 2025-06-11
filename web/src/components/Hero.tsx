@@ -1,7 +1,22 @@
 import { motion } from "framer-motion";
 import { Button, LinkButton } from "./ui/Button";
+import { useAuth } from "../utils/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleStartWriting = () => {
+    if (currentUser) {
+      navigate("/creator/new-story");
+    } else {
+      // If not logged in, redirect to login page or show login modal
+      // For now, we'll just navigate to creator which will show the login screen through PrivateRoute
+      navigate("/creator");
+    }
+  };
+
   return (
     <div className="relative bg-gradient-to-b from-parchment-50 to-parchment-100 dark:from-dark-950 dark:to-dark-900 pt-28 pb-20 md:pt-32 md:pb-24 overflow-hidden">
       {/* Decorative elements */}
@@ -48,14 +63,14 @@ const Hero = () => {
               >
                 Explore Stories
               </LinkButton>
-              <LinkButton
-                to="/create"
+              <Button
+                onClick={handleStartWriting}
                 variant="outline"
                 size="lg"
                 className="text-lg md:text-xl py-4 sm:py-4"
               >
                 Start Writing
-              </LinkButton>
+              </Button>
             </div>
           </motion.div>
         </div>

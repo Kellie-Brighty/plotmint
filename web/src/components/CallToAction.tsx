@@ -1,7 +1,22 @@
 import { motion } from "framer-motion";
-import { LinkButton } from "./ui/Button";
+import { LinkButton, Button } from "./ui/Button";
+import { useAuth } from "../utils/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const CallToAction = () => {
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleStartWriting = () => {
+    if (currentUser) {
+      navigate("/creator/new-story");
+    } else {
+      // If not logged in, redirect to login page or show login modal
+      // For now, we'll just navigate to creator which will show the login screen through PrivateRoute
+      navigate("/creator");
+    }
+  };
+
   return (
     <section className="py-16 md:py-20 w-full">
       <div className="container mx-auto px-4 sm:px-6">
@@ -31,14 +46,14 @@ const CallToAction = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row md:flex-col gap-4">
-              <LinkButton
-                to="/create"
+              <Button
+                onClick={handleStartWriting}
                 variant="cta-primary"
                 size="lg"
                 className="md:w-full md:min-w-[180px]"
               >
                 Start Writing
-              </LinkButton>
+              </Button>
               <LinkButton
                 to="/stories"
                 variant="cta-secondary"
