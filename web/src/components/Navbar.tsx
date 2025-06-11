@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "./ui/Button";
 import { useAuth } from "../utils/AuthContext";
 import JoinPlotMintModal from "./auth/JoinPlotMintModal";
-import WalletConnect from "./WalletConnect";
+// import WalletConnect from "./WalletConnect";
 
 interface NavbarProps {
   theme: "light" | "dark";
@@ -63,7 +63,10 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
               <span className="text-xl font-display font-bold text-primary-600 dark:text-primary-400">
-                Plot<span className="text-secondary-600 dark:text-secondary-400">Mint</span>
+                Plot
+                <span className="text-secondary-600 dark:text-secondary-400">
+                  Mint
+                </span>
               </span>
             </Link>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-4">
@@ -79,12 +82,6 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
               >
                 Discover
               </Link>
-              <a
-                href="#"
-                className="px-3 py-2 text-sm font-medium text-ink-600 dark:text-ink-300 hover:text-ink-900 dark:hover:text-white"
-              >
-                For Creators
-              </a>
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
@@ -120,7 +117,6 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
 
             {currentUser ? (
               <>
-                <WalletConnect />
                 <div className="relative" ref={dropdownRef}>
                   <Button
                     variant="outline"
@@ -128,7 +124,7 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
                     className="flex items-center"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   >
-                    <span>{currentUser.email?.split('@')[0] || 'User'}</span>
+                    <span>{currentUser.email?.split("@")[0] || "User"}</span>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className={`ml-2 h-4 w-4 transform transition-transform ${
@@ -162,12 +158,6 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
                         >
                           Creator Studio
                         </Link>
-                        <Link
-                          to="/profile/user1"
-                          className="block px-4 py-2 text-sm text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-700"
-                        >
-                          My Profile
-                        </Link>
                         <hr className="my-1 border-parchment-200 dark:border-dark-700" />
                         <button
                           onClick={handleSignOut}
@@ -181,8 +171,8 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
                 </div>
               </>
             ) : (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => setShowAuthModal(true)}
               >
@@ -292,12 +282,6 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
             >
               Discover
             </Link>
-            <a
-              href="#"
-              className="block px-3 py-2 rounded-md text-base font-medium text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
-            >
-              For Creators
-            </a>
           </div>
           <div className="px-4 py-3 border-t border-parchment-200 dark:border-dark-700">
             {currentUser ? (
@@ -307,17 +291,18 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
                     Dashboard
                   </Button>
                 </Link>
-                <Button 
-                  variant="primary" 
-                  fullWidth
-                  onClick={handleSignOut}
-                >
+                <Link to="/creator">
+                  <Button variant="outline" fullWidth className="mb-2">
+                    Creator Studio
+                  </Button>
+                </Link>
+                <Button variant="primary" fullWidth onClick={handleSignOut}>
                   Sign Out
                 </Button>
               </>
             ) : (
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 fullWidth
                 onClick={() => setShowAuthModal(true)}
               >
@@ -329,7 +314,7 @@ const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
       )}
 
       {/* Auth Modal */}
-      <JoinPlotMintModal 
+      <JoinPlotMintModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
       />

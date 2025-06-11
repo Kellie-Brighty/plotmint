@@ -36,14 +36,14 @@
 
   .dark {
     color-scheme: dark;
-    --background: 28 20% 10%;
-    --foreground: 20 15% 90%;
+    --background: 220 13% 18%;
+    --foreground: 210 20% 98%;
 
-    --card: 28 20% 12%;
-    --card-foreground: 20 15% 90%;
+    --card: 224 71% 4%;
+    --card-foreground: 213 31% 91%;
 
-    --popover: 28 20% 12%;
-    --popover-foreground: 20 15% 90%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 215 20% 65%;
 
     --primary: 18 25% 58%;
     --primary-foreground: 18 35% 95%;
@@ -51,17 +51,17 @@
     --secondary: 38 60% 45%;
     --secondary-foreground: 38 65% 95%;
 
-    --muted: 28 15% 20%;
-    --muted-foreground: 20 10% 70%;
+    --muted: 223 47% 11%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 28 15% 25%;
-    --accent-foreground: 20 15% 90%;
+    --accent: 216 34% 17%;
+    --accent-foreground: 210 20% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 28 15% 28%;
-    --input: 28 15% 28%;
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
     --ring: 18 25% 58%;
   }
 
@@ -218,4 +218,16 @@ button:hover {
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* Custom utility class for handling very long strings */
+.break-anywhere {
+  overflow-wrap: anywhere;
+  word-wrap: break-word;
+  word-break: break-word;
+  -ms-word-break: break-all;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  -ms-hyphens: auto;
+  max-width: 100%;
 }

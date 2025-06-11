@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/Button";
+import { subscribeToStories } from "../utils/storyService";
+import type { StoryData } from "../utils/storyService";
+import type { StoriesFilter } from "../utils/storyService";
 
 // Mock data for categories
 const CATEGORIES = [
@@ -15,93 +18,6 @@ const CATEGORIES = [
   { id: "crime", name: "Crime", count: 31 },
 ];
 
-// Mock data for trending stories
-const TRENDING_STORIES = [
-  {
-    id: "story1",
-    title: "The Quantum Nexus",
-    author: "Elena Voss",
-    authorId: "user1",
-    coverImage:
-      "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=800&h=600&q=80",
-    tags: ["sci-fi", "time-travel", "quantum"],
-    collectCount: 342,
-    readCount: 1254,
-    publishedAt: "2023-10-22T10:15:00Z",
-    summary:
-      "When Dr. Eliza Morgan discovers a portal to parallel universes, she must navigate multiple realities to save her own world from collapse.",
-  },
-  {
-    id: "story2",
-    title: "Shadows of Eldoria",
-    author: "Marcus Chen",
-    authorId: "user3",
-    coverImage:
-      "https://images.unsplash.com/photo-1518709766631-a6a7f45921c3?w=800&h=600&q=80",
-    tags: ["fantasy", "adventure", "magic"],
-    collectCount: 287,
-    readCount: 986,
-    publishedAt: "2023-10-18T14:30:00Z",
-    summary:
-      "In a realm where magic is fading, a reluctant hero must embrace his hidden powers to prevent an ancient darkness from consuming everything.",
-  },
-  {
-    id: "story3",
-    title: "Whispers in the Void",
-    author: "Sarah Jenkins",
-    authorId: "user4",
-    coverImage:
-      "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=800&h=600&q=80",
-    tags: ["horror", "cosmic", "psychological"],
-    collectCount: 198,
-    readCount: 753,
-    publishedAt: "2023-10-15T09:45:00Z",
-    summary:
-      "Strange transmissions from deep space lead a team of researchers to confront terrors beyond human comprehension.",
-  },
-  {
-    id: "story4",
-    title: "Heart of the Storm",
-    author: "Darius Williams",
-    authorId: "user5",
-    coverImage:
-      "https://images.unsplash.com/photo-1516472151647-6900f65d8975?w=800&h=600&q=80",
-    tags: ["romance", "drama", "adventure"],
-    collectCount: 276,
-    readCount: 1102,
-    publishedAt: "2023-10-12T11:20:00Z",
-    summary:
-      "Two rivals find themselves stranded together during a tropical storm, forcing them to confront their feelings and shared past.",
-  },
-  {
-    id: "story5",
-    title: "Neon Streets",
-    author: "Koji Yamamoto",
-    authorId: "user6",
-    coverImage:
-      "https://images.unsplash.com/photo-1520995051695-8dce7195e159?w=800&h=600&q=80",
-    tags: ["cyberpunk", "sci-fi", "noir"],
-    collectCount: 231,
-    readCount: 842,
-    publishedAt: "2023-10-08T16:50:00Z",
-    summary:
-      "A rogue AI detective hunts for a digital ghost in the sprawling megacity of New Tokyo, where reality and virtual worlds blur.",
-  },
-  {
-    id: "story6",
-    title: "Chronicles of the Forgotten",
-    author: "Amara Khan",
-    authorId: "user7",
-    coverImage:
-      "https://images.unsplash.com/photo-1512113899577-93b3dca7fa30?w=800&h=600&q=80",
-    tags: ["historical", "fantasy", "war"],
-    collectCount: 178,
-    readCount: 635,
-    publishedAt: "2023-10-05T13:40:00Z",
-    summary:
-      "Lost civilizations and ancient powers collide as historians uncover artifacts that rewrite the known history of humankind.",
-  },
-];
 
 // Mock data for popular tags
 const POPULAR_TAGS = [
@@ -124,61 +40,121 @@ const POPULAR_TAGS = [
 
 type FilterType = "trending" | "recent" | "popular" | "recommended";
 
+interface StoryCardData {
+  id?: string;
+  title: string;
+  author: string;
+  authorId: string;
+  coverImage: string;
+  tags: string[];
+  collectCount: number;
+  readCount: number;
+  publishedAt: any;
+  summary: string;
+}
+
 const DiscoveryPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterType>("trending");
-  const [stories, setStories] = useState(TRENDING_STORIES);
+  const [stories, setStories] = useState<StoryCardData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Subscribe to real-time updates
   useEffect(() => {
-    // In a real app, this would call an API with the selected filters
-    // For now, we'll just sort the mock data differently based on the active filter
-    let sortedStories = [...TRENDING_STORIES];
+    setLoading(true);
+    setError(null);
 
-    if (activeFilter === "trending") {
-      sortedStories.sort((a, b) => b.collectCount - a.collectCount);
-    } else if (activeFilter === "recent") {
-      sortedStories.sort(
-        (a, b) =>
-          new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-      );
-    } else if (activeFilter === "popular") {
-      sortedStories.sort((a, b) => b.readCount - a.readCount);
+    // Convert UI filters to service filter format
+    const filter: StoriesFilter = {
+      published: true,
+    };
+
+    // Set sort order based on activeFilter
+    switch (activeFilter) {
+      case "trending":
+        filter.sortBy = "viewCount";
+        filter.sortDirection = "desc";
+        break;
+      case "recent":
+        filter.sortBy = "createdAt";
+        filter.sortDirection = "desc";
+        break;
+      case "popular":
+        filter.sortBy = "collectCount";
+        filter.sortDirection = "desc";
+        break;
+      case "recommended":
+        // For now, just use the same as trending
+        filter.sortBy = "viewCount";
+        filter.sortDirection = "desc";
+        break;
     }
 
-    // Filter by categories if any are selected
-    if (selectedCategories.length > 0) {
-      sortedStories = sortedStories.filter((story) =>
-        story.tags.some((tag) => selectedCategories.includes(tag))
-      );
+    // Add category filter if any selected
+    if (selectedCategories.length === 1) {
+      // We can only filter by one genre in Firebase query
+      filter.genre = selectedCategories[0];
     }
 
-    // Filter by tags if any are selected
+    // Add tags to filter
     if (selectedTags.length > 0) {
-      sortedStories = sortedStories.filter((story) =>
-        story.tags.some((tag) => selectedTags.includes(tag))
-      );
+      filter.tags = selectedTags;
     }
 
-    // Filter by search query
-    if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase().trim();
-      sortedStories = sortedStories.filter(
-        (story) =>
-          story.title.toLowerCase().includes(query) ||
-          story.author.toLowerCase().includes(query) ||
-          story.summary.toLowerCase().includes(query) ||
-          story.tags.some((tag) => tag.toLowerCase().includes(query))
-      );
-    }
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToStories((fetchedStories: StoryData[]) => {
+      // Filter stories by search query if provided
+      let filteredStories = fetchedStories;
 
-    setStories(sortedStories);
-  }, [activeFilter, searchQuery, selectedCategories, selectedTags]);
+      if (searchQuery.trim() !== "") {
+        const query = searchQuery.toLowerCase().trim();
+        filteredStories = filteredStories.filter(
+          (story: StoryData) =>
+            story.title.toLowerCase().includes(query) ||
+            (story.description &&
+              story.description.toLowerCase().includes(query)) ||
+            (story.genre && story.genre.toLowerCase().includes(query)) ||
+            story.tags.some((tag: string) => tag.toLowerCase().includes(query))
+        );
+      }
+
+      // Map to UI format
+      const mappedStories = filteredStories.map(storyToCardFormat);
+      setStories(mappedStories);
+      setLoading(false);
+    }, filter);
+
+    // Clean up subscription on unmount or filter change
+    return () => unsubscribe();
+  }, [activeFilter, selectedCategories, selectedTags, searchQuery]);
+
+  // Map Firebase story data to UI format
+  const storyToCardFormat = (story: StoryData): StoryCardData => {
+    return {
+      id: story.id,
+      title: story.title,
+      author: story.creatorEmail?.split("@")[0] || "Anonymous",
+      authorId: story.creatorId,
+      coverImage: story.coverImage,
+      tags: story.tags,
+      collectCount: story.collectCount,
+      readCount: story.viewCount,
+      publishedAt: story.createdAt,
+      summary: story.description,
+    };
+  };
 
   // Format date for display
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (dateString: any) => {
+    if (!dateString) return "Unknown date";
+
+    // Handle Firebase Timestamp objects
+    const date = dateString.toDate ? dateString.toDate() : new Date(dateString);
+
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -363,148 +339,167 @@ const DiscoveryPage = () => {
           </div>
         </div>
 
+        {/* Loading State */}
+        {loading && (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {!loading && error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 p-4 rounded-md mb-6">
+            <p className="font-medium">Error loading stories</p>
+            <p className="text-sm mt-1">{error}</p>
+          </div>
+        )}
+
         {/* Results */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-ink-900 dark:text-white">
-              {stories.length} {stories.length === 1 ? "Story" : "Stories"}{" "}
-              Found
-            </h2>
-            {(selectedCategories.length > 0 ||
-              selectedTags.length > 0 ||
-              searchQuery) && (
-              <button
-                onClick={() => {
-                  setSelectedCategories([]);
-                  setSelectedTags([]);
-                  setSearchQuery("");
-                }}
-                className="text-sm text-primary-600 dark:text-primary-400 hover:underline flex items-center"
-              >
-                Clear Filters
+        {!loading && !error && (
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-ink-900 dark:text-white">
+                {stories.length} {stories.length === 1 ? "Story" : "Stories"}{" "}
+                Found
+              </h2>
+              {(selectedCategories.length > 0 ||
+                selectedTags.length > 0 ||
+                searchQuery) && (
+                <button
+                  onClick={() => {
+                    setSelectedCategories([]);
+                    setSelectedTags([]);
+                    setSearchQuery("");
+                  }}
+                  className="text-sm text-primary-600 dark:text-primary-400 hover:underline flex items-center"
+                >
+                  Clear Filters
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 ml-1"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {stories.length === 0 ? (
+              <div className="text-center py-16 bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 ml-1"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
+                  className="h-16 w-16 mx-auto text-ink-300 dark:text-ink-600 mb-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
                 >
                   <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clipRule="evenodd"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                    d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-              </button>
+                <h3 className="text-lg font-medium text-ink-900 dark:text-white mb-2">
+                  No stories found
+                </h3>
+                <p className="text-ink-600 dark:text-ink-400 max-w-md mx-auto">
+                  Try adjusting your search or filter criteria to find what
+                  you're looking for.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {stories.map((story) => (
+                  <motion.div
+                    key={story.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="bg-white dark:bg-dark-900 rounded-xl overflow-hidden shadow-sm border border-parchment-200 dark:border-dark-700 flex flex-col h-full hover:shadow-md transition-shadow"
+                  >
+                    <div className="h-48 overflow-hidden">
+                      <img
+                        src={story.coverImage}
+                        alt={story.title}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className="p-5 flex-1 flex flex-col">
+                      <div className="mb-2 flex flex-wrap gap-1">
+                        {story.tags.slice(0, 3).map((tag) => (
+                          <span
+                            key={tag}
+                            className="text-xs px-2 py-0.5 bg-parchment-100 dark:bg-dark-800 text-ink-700 dark:text-ink-300 rounded-full"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                      <h3 className="text-lg font-bold text-ink-900 dark:text-white mb-1">
+                        {story.title}
+                      </h3>
+                      <Link
+                        to={`/profile/${story.authorId}`}
+                        className="text-sm text-primary-600 dark:text-primary-400 hover:underline mb-3"
+                      >
+                        by {story.author}
+                      </Link>
+                      <p className="text-sm text-ink-600 dark:text-ink-300 mb-4 line-clamp-3 flex-1">
+                        {story.summary}
+                      </p>
+                      <div className="mt-auto flex items-center justify-between text-xs text-ink-500 dark:text-ink-400">
+                        <div className="flex items-center space-x-4">
+                          <span className="flex items-center">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4 mr-1"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                            </svg>
+                            {story.collectCount}
+                          </span>
+                          <span className="flex items-center">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4 mr-1"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                              <path
+                                fillRule="evenodd"
+                                d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {story.readCount}
+                          </span>
+                        </div>
+                        <span>{formatDate(story.publishedAt)}</span>
+                      </div>
+                      <div className="mt-4">
+                        <Link to={`/stories/${story.id}`}>
+                          <Button variant="primary" size="sm" fullWidth>
+                            Read Story
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             )}
           </div>
-
-          {stories.length === 0 ? (
-            <div className="text-center py-16 bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-16 w-16 mx-auto text-ink-300 dark:text-ink-600 mb-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <h3 className="text-lg font-medium text-ink-900 dark:text-white mb-2">
-                No stories found
-              </h3>
-              <p className="text-ink-600 dark:text-ink-400 max-w-md mx-auto">
-                Try adjusting your search or filter criteria to find what you're
-                looking for.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {stories.map((story) => (
-                <motion.div
-                  key={story.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="bg-white dark:bg-dark-900 rounded-xl overflow-hidden shadow-sm border border-parchment-200 dark:border-dark-700 flex flex-col h-full hover:shadow-md transition-shadow"
-                >
-                  <div className="h-48 overflow-hidden">
-                    <img
-                      src={story.coverImage}
-                      alt={story.title}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="p-5 flex-1 flex flex-col">
-                    <div className="mb-2 flex flex-wrap gap-1">
-                      {story.tags.slice(0, 3).map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-xs px-2 py-0.5 bg-parchment-100 dark:bg-dark-800 text-ink-700 dark:text-ink-300 rounded-full"
-                        >
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                    <h3 className="text-lg font-bold text-ink-900 dark:text-white mb-1">
-                      {story.title}
-                    </h3>
-                    <Link
-                      to={`/profile/${story.authorId}`}
-                      className="text-sm text-primary-600 dark:text-primary-400 hover:underline mb-3"
-                    >
-                      by {story.author}
-                    </Link>
-                    <p className="text-sm text-ink-600 dark:text-ink-300 mb-4 line-clamp-3 flex-1">
-                      {story.summary}
-                    </p>
-                    <div className="mt-auto flex items-center justify-between text-xs text-ink-500 dark:text-ink-400">
-                      <div className="flex items-center space-x-4">
-                        <span className="flex items-center">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4 mr-1"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
-                          </svg>
-                          {story.collectCount}
-                        </span>
-                        <span className="flex items-center">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4 mr-1"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                            <path
-                              fillRule="evenodd"
-                              d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          {story.readCount}
-                        </span>
-                      </div>
-                      <span>{formatDate(story.publishedAt)}</span>
-                    </div>
-                    <div className="mt-4">
-                      <Button variant="primary" size="sm" fullWidth>
-                        Read Story
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

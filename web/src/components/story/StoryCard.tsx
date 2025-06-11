@@ -96,7 +96,7 @@ const StoryCard: React.FC<StoryCardProps> = ({ story, viewMode }) => {
                 "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&h=600&q=80";
             }}
           />
-          <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
+          <div className="absolute top-3 right-3 bg-dark-950/80 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
             {story.chapters} {story.chapters === 1 ? "Chapter" : "Chapters"}
           </div>
         </Link>
@@ -115,7 +115,7 @@ const StoryCard: React.FC<StoryCardProps> = ({ story, viewMode }) => {
               </h3>
             </Link>
 
-            <p className="text-ink-600 dark:text-ink-300 text-sm line-clamp-2 mb-3">
+            <p className="text-ink-600 dark:text-ink-300 text-sm line-clamp-2 mb-3 whitespace-pre-line">
               {story.description}
             </p>
           </div>
@@ -170,6 +170,14 @@ const StoryCard: React.FC<StoryCardProps> = ({ story, viewMode }) => {
               </div>
             </div>
           </div>
+
+          <div className="mt-auto">
+            <Link to={`/stories/${story.id}`} className="w-full">
+              <button className="w-full py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white dark:bg-primary-500 dark:hover:bg-primary-400 rounded-md text-sm font-medium transition-colors">
+                Read Story
+              </button>
+            </Link>
+          </div>
         </div>
       </motion.div>
     );
@@ -196,7 +204,7 @@ const StoryCard: React.FC<StoryCardProps> = ({ story, viewMode }) => {
                 "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&h=600&q=80";
             }}
           />
-          <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
+          <div className="absolute top-2 right-2 bg-dark-950/80 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
             {story.chapters} {story.chapters === 1 ? "Chapter" : "Chapters"}
           </div>
         </Link>
@@ -253,7 +261,7 @@ const StoryCard: React.FC<StoryCardProps> = ({ story, viewMode }) => {
               </h3>
             </Link>
 
-            <p className="text-ink-600 dark:text-ink-300 text-sm mb-4 line-clamp-2">
+            <p className="text-ink-600 dark:text-ink-300 text-sm mb-4 line-clamp-2 whitespace-pre-line">
               {story.description}
             </p>
           </div>
@@ -285,6 +293,14 @@ const StoryCard: React.FC<StoryCardProps> = ({ story, viewMode }) => {
                 </span>
               )}
             </div>
+          </div>
+
+          <div className="mt-auto">
+            <Link to={`/stories/${story.id}`} className="w-full">
+              <button className="w-full py-2 px-4 bg-primary-600 hover:bg-primary-700 text-white dark:bg-primary-500 dark:hover:bg-primary-400 rounded-md text-sm font-medium transition-colors">
+                Read Story
+              </button>
+            </Link>
           </div>
         </div>
       </div>

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useAuth } from "../utils/AuthContext";
+import { createStory } from "../utils/storyService";
 
 // Define available genres
 const AVAILABLE_GENRES = [
@@ -18,6 +20,7 @@ const AVAILABLE_GENRES = [
 
 const CreateStoryPage = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState({
     title: "",
@@ -33,6 +36,7 @@ const CreateStoryPage = () => {
     description: "",
   });
   const [coverPreview, setCoverPreview] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Handle form input changes
   const handleInputChange = (
@@ -197,21 +201,52 @@ const CreateStoryPage = () => {
   };
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (validateCurrentStep()) {
-      // In a real app, this would send data to the server
-      console.log("Submitting story:", formData);
+      try {
+        setIsSubmitting(true);
 
-      // Instead of going to the dashboard, navigate to the first chapter creation page
-      // We'll pass the story data as state to use in the chapter editor
-      navigate("/creator/new-chapter", {
-        state: {
-          newStory: true,
-          storyData: formData,
-        },
-      });
+        // Make sure we have a user
+        if (!currentUser || !currentUser.email) {
+          throw new Error("You must be logged in to create a story");
+        }
+
+        // Save the story to Firebase
+        const storyId = await createStory(
+          {
+            title: formData.title,
+            genre: formData.genre,
+            tags: formData.tags,
+            description: formData.description,
+            coverImage: formData.coverImage || coverPreview,
+            readerCount: 0,
+          },
+          currentUser.uid,
+          currentUser.email
+        );
+
+        console.log("Story created with ID:", storyId);
+
+        // Navigate to chapter editor with the new story ID
+        navigate("/creator/new-chapter", {
+          state: {
+            newStory: true,
+            storyData: {
+              ...formData,
+              id: storyId,
+            },
+          },
+        });
+      } catch (error) {
+        console.error("Error creating story:", error);
+        setErrors({
+          ...errors,
+          title: "Failed to create story. Please try again.",
+        });
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -233,6 +268,15 @@ const CreateStoryPage = () => {
               Set up your interactive story and prepare to engage readers with
               branching narratives.
             </p>
+
+            {/* Add visibility notice */}
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-md">
+              <p className="text-sm text-blue-800 dark:text-blue-300">
+                <span className="font-medium">Note:</span> Your story will only
+                become visible to readers after you publish at least one
+                chapter.
+              </p>
+            </div>
           </motion.div>
 
           {/* Progress Steps */}
@@ -677,10 +721,14 @@ const CreateStoryPage = () => {
                   </button>
                 ) : (
                   <button
-                    type="submit"
-                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md"
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={isSubmitting}
+                    className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg disabled:opacity-50"
                   >
-                    Create Story
+                    {isSubmitting
+                      ? "Creating Story..."
+                      : "Create Story & Start First Chapter"}
                   </button>
                 )}
               </div>

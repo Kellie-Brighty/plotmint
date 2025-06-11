@@ -1,102 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import StoryCard from "../components/story/StoryCard";
 import StoryFilter from "../components/story/StoryFilter";
 import { Link } from "react-router-dom";
-
-// Temporary mock data for stories
-const MOCK_STORIES = [
-  {
-    id: "1",
-    title: "The Quantum Nexus",
-    coverImage:
-      "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=800&h=600&q=80",
-    author: "Elena Voss",
-    authorAvatar: "https://i.pravatar.cc/150?u=ElenaVoss",
-    chapters: 7,
-    genre: "Sci-Fi",
-    votes: 482,
-    collectors: 218,
-    description:
-      "A journey through the multiverse that challenges our understanding of reality and fate.",
-    tags: ["science fiction", "multiverse", "adventure"],
-  },
-  {
-    id: "2",
-    title: "Shadows of Eldoria",
-    coverImage:
-      "https://images.unsplash.com/photo-1518709766631-a6a7f45921c3?w=800&h=600&q=80",
-    author: "Marcus Chen",
-    authorAvatar: "https://i.pravatar.cc/150?u=MarcusChen",
-    chapters: 12,
-    genre: "Fantasy",
-    votes: 376,
-    collectors: 195,
-    description:
-      "An epic tale of magic, betrayal, and courage in the ancient realm of Eldoria.",
-    tags: ["fantasy", "magic", "adventure"],
-  },
-  {
-    id: "3",
-    title: "Whispers in the Void",
-    coverImage:
-      "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=800&h=600&q=80",
-    author: "Aisha Johnson",
-    authorAvatar: "https://i.pravatar.cc/150?u=AishaJohnson",
-    chapters: 5,
-    genre: "Horror",
-    votes: 214,
-    collectors: 103,
-    description:
-      "Strange voices call from beyond the stars, leading a small town into madness.",
-    tags: ["horror", "cosmic", "mystery"],
-  },
-  {
-    id: "4",
-    title: "Chronicles of New Albion",
-    coverImage:
-      "https://images.unsplash.com/photo-1501084817091-a4f3d1d19e07?w=800&h=600&q=80",
-    author: "Thomas Wright",
-    authorAvatar: "https://i.pravatar.cc/150?u=ThomasWright",
-    chapters: 9,
-    genre: "Steampunk",
-    votes: 301,
-    collectors: 147,
-    description:
-      "Steam-powered automatons and aristocratic intrigue in an alternate Victorian London.",
-    tags: ["steampunk", "alternate history", "mystery"],
-  },
-  {
-    id: "5",
-    title: "The Last Dreamer",
-    coverImage:
-      "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800&h=600&q=80",
-    author: "Sofia Mendes",
-    authorAvatar: "https://i.pravatar.cc/150?u=SofiaMendes",
-    chapters: 6,
-    genre: "Fantasy",
-    votes: 267,
-    collectors: 128,
-    description:
-      "When dreams begin to fade from the world, one person holds the key to their return.",
-    tags: ["fantasy", "dreams", "adventure"],
-  },
-  {
-    id: "6",
-    title: "Neon Streets",
-    coverImage:
-      "https://images.unsplash.com/photo-1520995051695-8dce7195e159?w=800&h=600&q=80",
-    author: "Koji Yamamoto",
-    authorAvatar: "https://i.pravatar.cc/150?u=KojiYamamoto",
-    chapters: 8,
-    genre: "Cyberpunk",
-    votes: 342,
-    collectors: 163,
-    description:
-      "A hacker's fight for survival in a corporate-controlled dystopian future.",
-    tags: ["cyberpunk", "future", "thriller"],
-  },
-];
+import { subscribeToStories } from "../utils/storyService";
+import type { StoriesFilter, StoryData } from "../utils/storyService";
 
 // Filter and sort options
 const GENRE_FILTERS = [
@@ -106,19 +14,84 @@ const GENRE_FILTERS = [
   "Horror",
   "Cyberpunk",
   "Steampunk",
+  "Mystery",
+  "Romance",
+  "Adventure",
+  "Historical",
 ];
+
 const SORT_OPTIONS = ["Trending", "Most Collected", "Newest", "Most Chapters"];
 
 const StoriesPage = () => {
   const [activeFilter, setActiveFilter] = useState("All");
   const [activeSort, setActiveSort] = useState("Trending");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [stories, setStories] = useState<StoryData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Filter stories based on selected genre
-  const filteredStories =
-    activeFilter === "All"
-      ? MOCK_STORIES
-      : MOCK_STORIES.filter((story) => story.genre === activeFilter);
+  // Subscribe to real-time stories data
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+
+    // Convert the UI filter/sort to the service filter format
+    const filter: StoriesFilter = {};
+
+    // Apply genre filter if not "All"
+    if (activeFilter !== "All") {
+      filter.genre = activeFilter;
+    }
+
+    // Apply sort order
+    switch (activeSort) {
+      case "Trending":
+        filter.sortBy = "viewCount";
+        filter.sortDirection = "desc";
+        break;
+      case "Most Collected":
+        filter.sortBy = "collectCount";
+        filter.sortDirection = "desc";
+        break;
+      case "Newest":
+        filter.sortBy = "createdAt";
+        filter.sortDirection = "desc";
+        break;
+      case "Most Chapters":
+        filter.sortBy = "chapterCount";
+        filter.sortDirection = "desc";
+        break;
+    }
+
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToStories((stories) => {
+      setStories(stories);
+      setLoading(false);
+    }, filter);
+
+    // Cleanup function to unsubscribe when component unmounts
+    // or when filter/sort changes
+    return () => {
+      unsubscribe();
+    };
+  }, [activeFilter, activeSort]);
+
+  // Format story data for the StoryCard component
+  const formatStoryForCard = (story: StoryData) => {
+    return {
+      id: story.id || "",
+      title: story.title,
+      coverImage: story.coverImage,
+      author: story.creatorEmail?.split("@")[0] || "Anonymous",
+      authorAvatar: `https://i.pravatar.cc/150?u=${story.creatorId}`,
+      chapters: story.chapterCount,
+      genre: story.genre,
+      votes: 0, // We don't have this data yet
+      collectors: story.collectCount,
+      description: story.description,
+      tags: story.tags,
+    };
+  };
 
   return (
     <div className="min-h-screen bg-parchment-50 dark:bg-dark-950 pt-24 pb-16">
@@ -158,24 +131,45 @@ const StoriesPage = () => {
           onViewModeChange={setViewMode}
         />
 
+        {/* Loading State */}
+        {loading && (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 p-4 rounded-md my-6">
+            <p className="font-medium">Error loading stories</p>
+            <p className="text-sm mt-1">{error}</p>
+          </div>
+        )}
+
         {/* Stories Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className={`grid ${
-            viewMode === "grid"
-              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
-              : "grid-cols-1 gap-4"
-          } mt-8`}
-        >
-          {filteredStories.map((story) => (
-            <StoryCard key={story.id} story={story} viewMode={viewMode} />
-          ))}
-        </motion.div>
+        {!loading && !error && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className={`grid ${
+              viewMode === "grid"
+                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
+                : "grid-cols-1 gap-4"
+            } mt-8`}
+          >
+            {stories.map((story) => (
+              <StoryCard
+                key={story.id}
+                story={formatStoryForCard(story)}
+                viewMode={viewMode}
+              />
+            ))}
+          </motion.div>
+        )}
 
         {/* Empty State */}
-        {filteredStories.length === 0 && (
+        {!loading && !error && stories.length === 0 && (
           <div className="text-center py-16">
             <h3 className="text-xl font-display font-medium text-ink-700 dark:text-ink-300 mb-2">
               No stories found

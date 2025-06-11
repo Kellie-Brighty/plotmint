@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@privy-io/react-auth": "^2.14.0",
     "firebase": "^11.9.0",
     "framer-motion": "^12.16.0",
     "heroicons": "^2.2.0",

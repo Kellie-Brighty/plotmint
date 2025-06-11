@@ -121,7 +121,7 @@ const JoinPlotMintModal = ({
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4">
         <div
-          className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm"
+          className="fixed inset-0 bg-dark-950 bg-opacity-30 backdrop-blur-sm"
           onClick={onClose}
         ></div>
 

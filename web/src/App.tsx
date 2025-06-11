@@ -10,7 +10,6 @@ import ReaderDashboardPage from "./pages/ReaderDashboardPage";
 import CreatorDashboardPage from "./pages/CreatorDashboardPage";
 import CreateStoryPage from "./pages/CreateStoryPage";
 import ChapterEditorPage from "./pages/ChapterEditorPage";
-import ProfilePage from "./pages/ProfilePage";
 import DiscoveryPage from "./pages/DiscoveryPage";
 import { AuthProvider } from "./utils/AuthContext";
 import PrivateRoute from "./components/auth/PrivateRoute";
@@ -27,11 +26,7 @@ function App() {
             <Route path="stories/:storyId" element={<StoryDetailPage />} />
             <Route
               path="stories/:storyId/chapters/:chapterId"
-              element={
-                <PrivateRoute>
-                  <ChapterReaderPage />
-                </PrivateRoute>
-              }
+              element={<ChapterReaderPage />}
             />
             <Route
               path="dashboard"
@@ -66,10 +61,10 @@ function App() {
               }
             />
             <Route
-              path="profile/:userId"
+              path="creator/edit-chapter/:chapterId"
               element={
                 <PrivateRoute>
-                  <ProfilePage />
+                  <ChapterEditorPage />
                 </PrivateRoute>
               }
             />

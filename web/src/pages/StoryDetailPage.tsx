@@ -1,86 +1,16 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "../components/ui/Button";
-
-// Mock data for a single story
-const MOCK_STORY = {
-  id: "1",
-  title: "The Quantum Nexus",
-  coverImage: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1200&h=600&q=80",
-  author: "Elena Voss",
-  authorAvatar: "https://i.pravatar.cc/150?u=ElenaVoss",
-  createdAt: "2023-09-15T14:32:00Z",
-  updatedAt: "2023-10-22T10:15:00Z",
-  description:
-    "A journey through the multiverse that challenges our understanding of reality and fate. When physicist Dr. Maya Chen discovers a way to peer into parallel universes, she unwittingly becomes the target of shadowy organizations seeking to control this revolutionary technology. As she navigates through different realities, each decision branches into infinite possibilities, creating a complex web of storylines that readers can explore and influence.",
-  tags: [
-    "science fiction",
-    "multiverse",
-    "adventure",
-    "quantum physics",
-    "conspiracy",
-  ],
-  genre: "Sci-Fi",
-  chapters: [
-    {
-      id: "ch1",
-      title: "The Discovery",
-      published: true,
-      publishedAt: "2023-09-15T14:32:00Z",
-      votes: 182,
-      collectors: 98,
-      preview:
-        "Dr. Maya Chen had always known that reality was more complex than most people imagined, but even she wasn't prepared for what she found when her quantum resonance experiment finally succeeded...",
-      estimatedReadingTime: 12,
-      choices: [
-        { id: "ch1-opt1", text: "Focus on stabilizing the quantum field" },
-        { id: "ch1-opt2", text: "Expand the observation window" },
-      ],
-    },
-    {
-      id: "ch2",
-      title: "Parallel Lines",
-      published: true,
-      publishedAt: "2023-09-22T09:45:00Z",
-      votes: 156,
-      collectors: 87,
-      preview:
-        "The resonance viewer hummed quietly as Maya adjusted the calibration. Through the viewer's lens, she could see fragments of another world—a world where different choices had been made...",
-      estimatedReadingTime: 15,
-      choices: [
-        { id: "ch2-opt1", text: "Contact Dr. Harrison for help" },
-        { id: "ch2-opt2", text: "Keep the discovery secret" },
-      ],
-    },
-    {
-      id: "ch3",
-      title: "The Watchers",
-      published: true,
-      publishedAt: "2023-09-29T16:20:00Z",
-      votes: 144,
-      collectors: 73,
-      preview:
-        "The black sedan had been parked across from her apartment for three days now. Maya knew she wasn't being paranoid—someone was watching her, someone who knew what she had discovered...",
-      estimatedReadingTime: 10,
-      choices: [
-        { id: "ch3-opt1", text: "Confront the watchers" },
-        { id: "ch3-opt2", text: "Flee to a safe location" },
-      ],
-    },
-    {
-      id: "ch4",
-      title: "Crossroads",
-      published: false,
-      publishedAt: null,
-      votes: 0,
-      collectors: 0,
-      preview: "Coming soon...",
-      estimatedReadingTime: null,
-      choices: [],
-    },
-  ],
-};
+import {
+  subscribeToStory,
+  subscribeToChapters,
+  recordStoryView,
+  trackStoryReader,
+  ensureStoryNumericFields,
+} from "../utils/storyService";
+import type { StoryData, ChapterData } from "../utils/storyService";
+import { useAuth } from "../utils/AuthContext";
 
 // Function to get placeholder image based on genre
 const getPlaceholderImage = (genre: string) => {
@@ -101,22 +31,85 @@ const getPlaceholderImage = (genre: string) => {
 };
 
 // Function to get avatar image
-const getAvatarUrl = (authorName: string) => {
+const getAvatarUrl = (authorName: string | null | undefined) => {
+  if (!authorName) return `https://i.pravatar.cc/150?u=anonymous`;
   return `https://i.pravatar.cc/150?u=${authorName.replace(/\s+/g, "")}`;
 };
 
 const StoryDetailPage = () => {
-  // const { storyId } = useParams<{ storyId: string }>();
+  const { storyId } = useParams<{ storyId: string }>();
+  const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<"overview" | "chapters">(
     "overview"
   );
+  const [story, setStory] = useState<StoryData | null>(null);
+  const [chapters, setChapters] = useState<ChapterData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [viewRecorded, setViewRecorded] = useState(false);
 
-  // In a real app, you would fetch the story based on storyId
-  const story = MOCK_STORY;
+  // Subscribe to real-time story data
+  useEffect(() => {
+    if (!storyId) {
+      setError("Story ID is missing");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    // Subscribe to real-time story updates
+    const unsubscribeStory = subscribeToStory(storyId, (fetchedStory) => {
+      if (fetchedStory) {
+        setStory(fetchedStory);
+
+        // Fix any NaN values in the story
+        ensureStoryNumericFields(storyId).catch((err) =>
+          console.error("Error fixing numeric fields:", err)
+        );
+
+        // Record view and track reader only once per session and if not creator
+        if (!viewRecorded && fetchedStory) {
+          setViewRecorded(true);
+
+          // Record the view
+          recordStoryView(storyId, currentUser?.uid || null);
+
+          // Track the reader if user is authenticated
+          if (currentUser?.uid) {
+            trackStoryReader(storyId, currentUser.uid);
+          }
+        }
+      } else {
+        setError("Story not found");
+      }
+      setLoading(false);
+    });
+
+    // Subscribe to real-time chapter updates
+    const unsubscribeChapters = subscribeToChapters(
+      storyId,
+      (fetchedChapters) => {
+        setChapters(fetchedChapters);
+      }
+    );
+
+    // Cleanup function to unsubscribe when component unmounts
+    return () => {
+      unsubscribeStory();
+      unsubscribeChapters();
+    };
+  }, [storyId, currentUser, viewRecorded]);
 
   // Formatted dates for display
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (dateString: any) => {
+    if (!dateString) return "Unknown date";
+
+    // Handle Firebase Timestamp objects
+    const date = dateString.toDate ? dateString.toDate() : new Date(dateString);
+
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -125,11 +118,68 @@ const StoryDetailPage = () => {
 
   // Get cover image URL
   const getCoverImageUrl = () => {
+    if (!story) return getPlaceholderImage("default");
+
     if (story.coverImage && story.coverImage.startsWith("http")) {
       return story.coverImage;
     }
     return getPlaceholderImage(story.genre);
   };
+
+  // Create a mock chapter structure from ChapterData for compatibility
+  const formatChapterForDisplay = (chapter: ChapterData) => {
+    return {
+      id: chapter.id || "",
+      title: chapter.title,
+      content: chapter.content,
+      published: chapter.published,
+      publishedAt: chapter.createdAt,
+      votes: 0, // We don't have this data yet
+      collectors: 0, // We don't have this data yet
+      preview: chapter.content.substring(0, 150) + "...",
+      htmlPreview: `<div class="whitespace-pre-line break-anywhere">${
+        chapter.content.substring(0, 150) + "..."
+      }</div>`,
+      estimatedReadingTime: Math.ceil(chapter.content.split(" ").length / 200), // Rough estimate
+      choices:
+        chapter.choiceOptions?.map((option, index) => ({
+          id: `ch${chapter.id}-opt${index}`,
+          text: option,
+        })) || [],
+    };
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-parchment-50 dark:bg-dark-950 min-h-screen pt-24 pb-16 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (error || !story) {
+    return (
+      <div className="bg-parchment-50 dark:bg-dark-950 min-h-screen pt-24 pb-16">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-3xl mx-auto bg-white dark:bg-dark-900 rounded-xl p-8 shadow-sm border border-parchment-200 dark:border-dark-700 text-center">
+            <h2 className="text-2xl font-bold text-ink-900 dark:text-white mb-4">
+              {error || "Story not found"}
+            </h2>
+            <p className="text-ink-600 dark:text-ink-300 mb-6">
+              The story you're looking for might have been removed or doesn't
+              exist.
+            </p>
+            <Link to="/stories">
+              <Button variant="primary">Back to Stories</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Format chapters for display
+  const displayChapters = chapters.map(formatChapterForDisplay);
 
   return (
     <div className="bg-parchment-50 dark:bg-dark-950 min-h-screen pt-24 pb-16">
@@ -145,11 +195,10 @@ const StoryDetailPage = () => {
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
-                  target.src =
-                    "https://source.unsplash.com/random/1200x600/?book";
+                  target.src = getPlaceholderImage(story.genre);
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-dark-950/80 to-transparent"></div>
             </div>
 
             <div className="md:absolute md:bottom-8 md:left-8 md:right-8 z-10">
@@ -161,17 +210,16 @@ const StoryDetailPage = () => {
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    target.src =
-                      "https://source.unsplash.com/random/1200x600/?book";
+                    target.src = getPlaceholderImage(story.genre);
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-dark-950/80 to-transparent"></div>
 
                 <div className="absolute bottom-4 left-4 right-4">
                   <span className="inline-block px-2 py-1 text-xs font-medium rounded-full bg-primary-500 text-white mb-2">
                     {story.genre}
                   </span>
-                  <h1 className="text-2xl sm:text-3xl font-display font-bold text-white mb-1">
+                  <h1 className="text-2xl sm:text-3xl font-display font-bold text-white mb-1 break-anywhere">
                     {story.title}
                   </h1>
                 </div>
@@ -182,23 +230,26 @@ const StoryDetailPage = () => {
                 <span className="inline-block px-2 py-1 text-xs font-medium rounded-full bg-primary-500 text-white mb-2">
                   {story.genre}
                 </span>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-white mb-2">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-white mb-2 break-anywhere">
                   {story.title}
                 </h1>
                 <div className="flex items-center text-white/90">
                   <img
-                    src={getAvatarUrl(story.author)}
-                    alt={story.author}
+                    src={
+                      story.creatorId
+                        ? `https://i.pravatar.cc/150?u=${story.creatorId}`
+                        : getAvatarUrl("Anonymous")
+                    }
+                    alt={story.creatorEmail?.split("@")[0] || "Anonymous"}
                     className="w-8 h-8 rounded-full mr-2 object-cover"
                   />
-                  <span className="font-medium">{story.author}</span>
-                  <span className="mx-2">•</span>
-                  <span>
-                    {story.chapters.filter((ch) => ch.published).length}{" "}
-                    Chapters
+                  <span className="font-medium">
+                    {story.creatorEmail?.split("@")[0] || "Anonymous"}
                   </span>
                   <span className="mx-2">•</span>
-                  <span>Updated {formatDate(story.updatedAt)}</span>
+                  <span>{story.chapterCount} Chapters</span>
+                  <span className="mx-2">•</span>
+                  <span>{formatDate(story.createdAt)}</span>
                 </div>
               </div>
             </div>
@@ -207,15 +258,19 @@ const StoryDetailPage = () => {
           {/* Mobile Author Info */}
           <div className="flex items-center md:hidden mb-6 text-ink-700 dark:text-ink-200">
             <img
-              src={getAvatarUrl(story.author)}
-              alt={story.author}
+              src={
+                story.creatorId
+                  ? `https://i.pravatar.cc/150?u=${story.creatorId}`
+                  : getAvatarUrl("Anonymous")
+              }
+              alt={story.creatorEmail?.split("@")[0] || "Anonymous"}
               className="w-8 h-8 rounded-full mr-2 object-cover"
             />
-            <span className="font-medium">{story.author}</span>
-            <span className="mx-2">•</span>
-            <span>
-              {story.chapters.filter((ch) => ch.published).length} Chapters
+            <span className="font-medium">
+              {story.creatorEmail?.split("@")[0] || "Anonymous"}
             </span>
+            <span className="mx-2">•</span>
+            <span>{story.chapterCount} Chapters</span>
           </div>
 
           {/* Tab Navigation */}
@@ -275,7 +330,7 @@ const StoryDetailPage = () => {
                       <h2 className="font-display text-2xl font-bold">
                         Recent Chapters
                       </h2>
-                      {story.chapters
+                      {displayChapters
                         .filter((chapter) => chapter.published)
                         .slice(0, 3)
                         .map((chapter) => (
@@ -284,14 +339,17 @@ const StoryDetailPage = () => {
                             to={`/stories/${story.id}/chapters/${chapter.id}`}
                             className="block p-4 bg-white dark:bg-dark-900 rounded-lg border border-parchment-200 dark:border-dark-700 hover:shadow-md transition-shadow"
                           >
-                            <h3 className="font-bold text-lg text-ink-900 dark:text-white mb-2">
+                            <h3 className="font-bold text-lg text-ink-900 dark:text-white mb-2 break-anywhere">
                               {chapter.title}
                             </h3>
-                            <p className="text-ink-600 dark:text-ink-300 text-sm line-clamp-2 mb-3">
-                              {chapter.preview}
-                            </p>
+                            <div
+                              className="text-ink-600 dark:text-ink-300 text-sm line-clamp-2 mb-3 whitespace-pre-line break-anywhere"
+                              dangerouslySetInnerHTML={{
+                                __html: chapter.htmlPreview,
+                              }}
+                            />
                             <div className="flex items-center justify-between text-sm text-ink-500 dark:text-ink-400">
-                              <span>{formatDate(chapter.publishedAt!)}</span>
+                              <span>{formatDate(chapter.publishedAt)}</span>
                               <span>
                                 {chapter.estimatedReadingTime} min read
                               </span>
@@ -322,7 +380,7 @@ const StoryDetailPage = () => {
                       All Chapters
                     </h2>
 
-                    {story.chapters.map((chapter, index) => (
+                    {displayChapters.map((chapter, index) => (
                       <div
                         key={chapter.id}
                         className={`relative p-5 ${
@@ -341,20 +399,21 @@ const StoryDetailPage = () => {
                           </div>
 
                           <div className="flex-grow">
-                            <h3 className="font-bold text-lg text-ink-900 dark:text-white mb-2">
+                            <h3 className="font-bold text-lg text-ink-900 dark:text-white mb-2 break-anywhere">
                               {chapter.title}
                             </h3>
 
-                            <p className="text-ink-600 dark:text-ink-300 text-sm mb-4">
-                              {chapter.preview}
-                            </p>
+                            <div
+                              className="text-ink-600 dark:text-ink-300 text-sm line-clamp-2 mb-3 whitespace-pre-line break-anywhere"
+                              dangerouslySetInnerHTML={{
+                                __html: chapter.htmlPreview,
+                              }}
+                            />
 
                             {chapter.published ? (
                               <div className="flex flex-wrap items-center justify-between gap-y-4">
                                 <div className="flex items-center text-sm text-ink-500 dark:text-ink-400 space-x-4">
-                                  <span>
-                                    {formatDate(chapter.publishedAt!)}
-                                  </span>
+                                  <span>{formatDate(chapter.publishedAt)}</span>
                                   {chapter.estimatedReadingTime && (
                                     <span>
                                       {chapter.estimatedReadingTime} min read
@@ -469,8 +528,24 @@ const StoryDetailPage = () => {
                         Chapters
                       </span>
                       <span className="text-sm font-medium text-ink-900 dark:text-white">
-                        {story.chapters.filter((ch) => ch.published).length} of{" "}
-                        {story.chapters.length}
+                        {displayChapters.filter((ch) => ch.published).length} of{" "}
+                        {displayChapters.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-ink-600 dark:text-ink-300">
+                        Views
+                      </span>
+                      <span className="text-sm font-medium text-ink-900 dark:text-white">
+                        {story.viewCount}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-ink-600 dark:text-ink-300">
+                        Readers
+                      </span>
+                      <span className="text-sm font-medium text-ink-900 dark:text-white">
+                        {story.readerCount || 0}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -485,31 +560,15 @@ const StoryDetailPage = () => {
 
                   <div className="space-y-3">
                     <Link
-                      to={`/stories/${story.id}/chapters/${story.chapters[0].id}`}
+                      to={
+                        displayChapters.length > 0
+                          ? `/stories/${story.id}/chapters/${displayChapters[0].id}`
+                          : `/stories/${story.id}`
+                      }
                       className="block w-full py-3 px-4 bg-primary-600 hover:bg-primary-700 text-white dark:bg-primary-500 dark:hover:bg-primary-400 rounded-md text-center font-medium transition-colors"
                     >
                       Start Reading
                     </Link>
-
-                    <button className="block w-full py-3 px-4 bg-white hover:bg-gray-50 text-ink-900 dark:bg-dark-800 dark:hover:bg-dark-700 dark:text-white rounded-md text-center font-medium border border-parchment-200 dark:border-dark-700 transition-colors">
-                      <div className="flex items-center justify-center">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5 mr-2"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                          />
-                        </svg>
-                        Add to Library
-                      </div>
-                    </button>
                   </div>
                 </div>
 
@@ -520,16 +579,20 @@ const StoryDetailPage = () => {
 
                   <div className="flex items-center mb-4">
                     <img
-                      src={getAvatarUrl(story.author)}
-                      alt={story.author}
+                      src={
+                        story.creatorId
+                          ? `https://i.pravatar.cc/150?u=${story.creatorId}`
+                          : getAvatarUrl("Anonymous")
+                      }
+                      alt={story.creatorEmail?.split("@")[0] || "Anonymous"}
                       className="w-12 h-12 rounded-full mr-3 object-cover"
                     />
                     <div>
                       <h4 className="font-medium text-ink-900 dark:text-white">
-                        {story.author}
+                        {story.creatorEmail?.split("@")[0] || "Anonymous"}
                       </h4>
                       <p className="text-sm text-ink-500 dark:text-ink-400">
-                        Writer • 12 Stories
+                        Writer • {story.creatorId ? "1" : "0"} Stories
                       </p>
                     </div>
                   </div>

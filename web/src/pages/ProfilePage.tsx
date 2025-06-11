@@ -1,168 +1,165 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "../components/ui/Button";
+import { useAuth } from "../utils/AuthContext";
+import {
+  subscribeToUserProfile,
+  subscribeToUserStories,
+  subscribeToUserCollection,
+  subscribeToUserActivity,
+  updateUserProfile,
+  type UserProfile,
+  type UserStory,
+  type UserCollection,
+  type UserActivity,
+} from "../utils/userService";
+import { EmptyStateCard } from "../components/ui/EmptyStateCard";
 
-// Mock user data
-const MOCK_USERS: Record<string, any> = {
-  "user1": {
-    id: "user1",
-    username: "storyteller42",
-    displayName: "Alex Morgan",
-    avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&q=80",
-    bio: "Fiction writer specializing in sci-fi and fantasy. Building worlds one chapter at a time.",
-    joined: "2023-05-15T10:30:00Z",
-    isCreator: true,
-    followers: 127,
-    following: 43,
-    stories: [
-      {
-        id: "story1",
-        title: "The Quantum Nexus",
-        coverImage: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=400&h=300&q=80",
-        chaptersCount: 7,
-        collectorsCount: 218,
-        lastUpdated: "2023-10-22T10:15:00Z"
-      },
-      {
-        id: "story2",
-        title: "Whispers in the Void",
-        coverImage: "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=400&h=300&q=80",
-        chaptersCount: 5,
-        collectorsCount: 103,
-        lastUpdated: "2023-09-15T14:32:00Z"
-      }
-    ],
-    collection: [
-      {
-        id: "coll1",
-        storyId: "story3",
-        storyTitle: "Beyond the Stars",
-        chapterTitle: "First Contact",
-        coverImage: "https://images.unsplash.com/photo-1465101162946-4377e57745c3?w=400&h=300&q=80",
-        collectedAt: "2023-10-18T08:45:00Z"
-      },
-      {
-        id: "coll2",
-        storyId: "story4",
-        storyTitle: "Ethereal Memories",
-        chapterTitle: "The Awakening",
-        coverImage: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=400&h=300&q=80",
-        collectedAt: "2023-10-05T14:20:00Z"
-      }
-    ],
-    activity: [
-      {
-        id: "act1",
-        type: "publish",
-        storyId: "story1",
-        storyTitle: "The Quantum Nexus",
-        chapterTitle: "Chapter 7: The Revelation",
-        timestamp: "2023-10-22T10:15:00Z"
-      },
-      {
-        id: "act2",
-        type: "collect",
-        storyId: "story3",
-        storyTitle: "Beyond the Stars",
-        chapterTitle: "First Contact",
-        timestamp: "2023-10-18T08:45:00Z"
-      },
-      {
-        id: "act3",
-        type: "vote",
-        storyId: "story5",
-        storyTitle: "Chronicles of Eldoria",
-        chapterTitle: "Chapter 3: The Decision",
-        optionChosen: "Venture into the forbidden forest",
-        timestamp: "2023-10-12T16:30:00Z"
-      }
-    ]
-  },
-  "user2": {
-    id: "user2",
-    username: "readerlover",
-    displayName: "Jamie Wilson",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&q=80",
-    bio: "Avid reader and collector of digital narratives. I love stories that challenge conventional thinking.",
-    joined: "2023-04-10T08:15:00Z",
-    isCreator: false,
-    followers: 38,
-    following: 102,
-    collection: [
-      {
-        id: "coll3",
-        storyId: "story1",
-        storyTitle: "The Quantum Nexus",
-        chapterTitle: "Chapter 5: The Choice",
-        coverImage: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=400&h=300&q=80",
-        collectedAt: "2023-10-20T11:30:00Z"
-      },
-      {
-        id: "coll4",
-        storyId: "story2",
-        storyTitle: "Whispers in the Void",
-        chapterTitle: "Chapter 3: Echoes",
-        coverImage: "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=400&h=300&q=80",
-        collectedAt: "2023-10-10T09:15:00Z"
-      },
-      {
-        id: "coll5",
-        storyId: "story6",
-        storyTitle: "The Last Guardian",
-        chapterTitle: "Chapter 1: Awakening",
-        coverImage: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&h=300&q=80",
-        collectedAt: "2023-09-28T15:40:00Z"
-      }
-    ],
-    activity: [
-      {
-        id: "act4",
-        type: "collect",
-        storyId: "story1",
-        storyTitle: "The Quantum Nexus",
-        chapterTitle: "Chapter 5: The Choice",
-        timestamp: "2023-10-20T11:30:00Z"
-      },
-      {
-        id: "act5",
-        type: "vote",
-        storyId: "story1",
-        storyTitle: "The Quantum Nexus",
-        chapterTitle: "Chapter 6: Crossroads",
-        optionChosen: "Follow the quantum signature",
-        timestamp: "2023-10-15T13:20:00Z"
-      },
-      {
-        id: "act6",
-        type: "collect",
-        storyId: "story2",
-        storyTitle: "Whispers in the Void",
-        chapterTitle: "Chapter 3: Echoes",
-        timestamp: "2023-10-10T09:15:00Z"
-      }
-    ]
-  }
-};
+// Fallback user data (when no profile exists)
+const createFallbackProfile = (
+  userId: string,
+  username?: string
+): UserProfile => ({
+  id: userId,
+  username: username || "user",
+  displayName: username || "Anonymous User",
+  avatar: `https://i.pravatar.cc/150?u=${userId}`,
+  bio: "",
+  joined: new Date().toISOString(),
+  isCreator: false,
+});
 
 type TabType = "collection" | "stories" | "activity";
 
 const ProfilePage = () => {
   const { userId } = useParams<{ userId: string }>();
+  const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("collection");
-  const [userData, setUserData] = useState(MOCK_USERS[userId || "user1"]);
-  
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userStories, setUserStories] = useState<UserStory[]>([]);
+  const [userCollection, setUserCollection] = useState<UserCollection[]>([]);
+  const [userActivity, setUserActivity] = useState<UserActivity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Subscribe to user profile data
   useEffect(() => {
-    // In a real app, this would fetch user data from an API
-    setUserData(MOCK_USERS[userId || "user1"]);
-    
-    // Set page title
-    document.title = `${userData?.displayName || "User"} | PlotMint`;
-  }, [userId, userData?.displayName]);
+    if (!userId) {
+      setError("User ID is missing");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    // Check if this is the current user's profile
+    const isCurrentUserProfile = currentUser && currentUser.uid === userId;
+
+    // Subscribe to real-time profile updates
+    const unsubscribe = subscribeToUserProfile(userId, async (profile) => {
+      if (profile) {
+        setUserProfile(profile);
+      } else {
+        // If no profile exists and this is the current user, create one
+        if (isCurrentUserProfile && currentUser) {
+          try {
+            // Create profile using the auth data
+            const defaultUsername = currentUser.email?.split("@")[0] || "user";
+            const profileData = {
+              displayName: currentUser.displayName || defaultUsername,
+              username: defaultUsername,
+              avatar:
+                currentUser.photoURL ||
+                `https://i.pravatar.cc/150?u=${currentUser.uid}`,
+              bio: "",
+              isCreator: false,
+            };
+
+            await updateUserProfile(currentUser, profileData);
+            // Profile will be updated via the subscription
+          } catch (err) {
+            console.error("Error creating user profile:", err);
+            // Fall back to default profile if creation fails
+            const username = userId.includes("@")
+              ? userId.split("@")[0]
+              : undefined;
+            setUserProfile(createFallbackProfile(userId, username));
+          }
+        } else {
+          // If it's not the current user or profile creation failed, use fallback
+          const username = userId.includes("@")
+            ? userId.split("@")[0]
+            : undefined;
+          setUserProfile(createFallbackProfile(userId, username));
+        }
+      }
+      setLoading(false);
+    });
+
+    // Clean up subscription
+    return () => {
+      unsubscribe();
+    };
+  }, [userId, currentUser]);
+
+  // Update page title when profile data is available
+  useEffect(() => {
+    if (userProfile) {
+      document.title = `${userProfile.displayName} | PlotMint`;
+    }
+  }, [userProfile]);
+
+  // Subscribe to stories data if user is a creator
+  useEffect(() => {
+    if (!userId || !userProfile) return;
+
+    if (userProfile.isCreator) {
+      const unsubscribe = subscribeToUserStories(userId, (stories) => {
+        setUserStories(stories);
+      });
+
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [userId, userProfile]);
+
+  // Subscribe to collection data
+  useEffect(() => {
+    if (!userId) return;
+
+    const unsubscribe = subscribeToUserCollection(userId, (collection) => {
+      setUserCollection(collection);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [userId]);
+
+  // Subscribe to activity data
+  useEffect(() => {
+    if (!userId) return;
+
+    const unsubscribe = subscribeToUserActivity(userId, (activity) => {
+      setUserActivity(activity);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [userId]);
 
   // Format date for display
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (dateString: any) => {
+    if (!dateString) return "Unknown date";
+
+    // Handle Firebase Timestamp objects
+    const date = dateString.toDate ? dateString.toDate() : new Date(dateString);
+
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -170,11 +167,14 @@ const ProfilePage = () => {
   };
 
   // Get relative time string
-  const getRelativeTimeString = (dateString: string) => {
-    const date = new Date(dateString);
+  const getRelativeTimeString = (dateString: any) => {
+    if (!dateString) return "recently";
+
+    // Handle Firebase Timestamp objects
+    const date = dateString.toDate ? dateString.toDate() : new Date(dateString);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) {
       return "just now";
     } else if (diffInSeconds < 3600) {
@@ -195,39 +195,104 @@ const ProfilePage = () => {
     }
   };
 
+  // Force update profile with current user information
+  const handleForceUpdateProfile = async () => {
+    if (!currentUser) return;
+
+    try {
+      setLoading(true);
+      const defaultUsername = currentUser.email?.split("@")[0] || "user";
+      await updateUserProfile(currentUser, {
+        displayName: currentUser.displayName || defaultUsername,
+        username: defaultUsername,
+        avatar:
+          currentUser.photoURL ||
+          `https://i.pravatar.cc/150?u=${currentUser.uid}`,
+        bio: "",
+        isCreator: false,
+      });
+      setLoading(false);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      setLoading(false);
+    }
+  };
+
   // Render activity icon based on type
   const renderActivityIcon = (type: string) => {
     switch (type) {
       case "publish":
         return (
           <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full text-green-600 dark:text-green-400">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              />
             </svg>
           </div>
         );
       case "collect":
         return (
-          <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-600 dark:text-purple-400">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
               <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
             </svg>
           </div>
         );
       case "vote":
         return (
-          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-600 dark:text-purple-400">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
               <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
             </svg>
           </div>
         );
       default:
-        return null;
+        return (
+          <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-600 dark:text-gray-400">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+        );
     }
   };
 
-  if (!userData) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-parchment-50 dark:bg-dark-950 pt-24 pb-16 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (error || !userProfile) {
     return (
       <div className="min-h-screen bg-parchment-50 dark:bg-dark-950 pt-24 pb-16">
         <div className="content-wrapper">
@@ -236,11 +301,14 @@ const ProfilePage = () => {
               User Not Found
             </h1>
             <p className="text-ink-600 dark:text-ink-300 mb-6">
-              The user profile you're looking for doesn't exist or has been removed.
+              The user profile you're looking for doesn't exist or has been
+              removed.
             </p>
-            <Button variant="primary" size="md">
-              Back to Home
-            </Button>
+            <Link to="/">
+              <Button variant="primary" size="md">
+                Back to Home
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
@@ -262,50 +330,55 @@ const ProfilePage = () => {
             {/* Avatar */}
             <div className="absolute -bottom-16 left-6 sm:left-8">
               <div className="w-32 h-32 rounded-full border-4 border-white dark:border-dark-900 overflow-hidden shadow-md">
-                <img 
-                  src={userData.avatar} 
-                  alt={userData.displayName} 
+                <img
+                  src={userProfile.avatar}
+                  alt={userProfile.displayName}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = `https://i.pravatar.cc/150?u=${userId}`;
+                  }}
                 />
               </div>
             </div>
           </div>
-          
+
           <div className="pt-20 px-6 sm:px-8 pb-8">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-6">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-ink-900 dark:text-white mb-1">
-                  {userData.displayName}
+                  {userProfile.displayName}
                 </h1>
                 <p className="text-ink-500 dark:text-ink-400 mb-2">
-                  @{userData.username}
+                  @{userProfile.username}
                 </p>
                 <div className="flex items-center space-x-4 text-sm">
                   <span className="text-ink-600 dark:text-ink-300">
-                    <span className="font-medium text-ink-900 dark:text-white">{userData.followers}</span> Followers
-                  </span>
-                  <span className="text-ink-600 dark:text-ink-300">
-                    <span className="font-medium text-ink-900 dark:text-white">{userData.following}</span> Following
-                  </span>
-                  <span className="text-ink-600 dark:text-ink-300">
-                    Joined {formatDate(userData.joined)}
+                    Joined {formatDate(userProfile.joined)}
                   </span>
                 </div>
               </div>
-              
-              <div className="mt-4 sm:mt-0">
-                <Button variant="primary" size="sm">
-                  Follow
-                </Button>
-              </div>
+
+              {currentUser && currentUser.uid === userId && (
+                <div className="mt-4 sm:mt-0">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleForceUpdateProfile}
+                    disabled={loading}
+                  >
+                    {loading ? "Updating..." : "Update Profile"}
+                  </Button>
+                </div>
+              )}
             </div>
-            
-            {userData.bio && (
+
+            {userProfile.bio && (
               <p className="text-ink-700 dark:text-ink-200 mb-6 max-w-3xl">
-                {userData.bio}
+                {userProfile.bio}
               </p>
             )}
-            
+
             {/* Tabs */}
             <div className="border-b border-parchment-200 dark:border-dark-700">
               <nav className="flex -mb-px space-x-8">
@@ -319,7 +392,7 @@ const ProfilePage = () => {
                 >
                   Collection
                 </button>
-                {userData.isCreator && (
+                {userProfile.isCreator && (
                   <button
                     onClick={() => setActiveTab("stories")}
                     className={`py-4 text-sm font-medium border-b-2 ${
@@ -345,7 +418,7 @@ const ProfilePage = () => {
             </div>
           </div>
         </motion.div>
-        
+
         {/* Tab Content */}
         <motion.div
           key={activeTab}
@@ -355,116 +428,241 @@ const ProfilePage = () => {
           className="mb-8"
         >
           {/* Collection Tab */}
-          {activeTab === "collection" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {userData.collection?.map((item: any) => (
-                <div 
-                  key={item.id}
-                  className="bg-white dark:bg-dark-900 rounded-xl overflow-hidden shadow-sm border border-parchment-200 dark:border-dark-700 hover:shadow-md transition-shadow"
-                >
-                  <div className="h-48 overflow-hidden">
-                    <img 
-                      src={item.coverImage} 
-                      alt={item.storyTitle} 
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <h3 className="text-lg font-bold text-ink-900 dark:text-white mb-1">
-                      {item.storyTitle}
-                    </h3>
-                    <p className="text-ink-600 dark:text-ink-300 text-sm mb-3">
-                      {item.chapterTitle}
-                    </p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-ink-500 dark:text-ink-400">
-                        Collected {getRelativeTimeString(item.collectedAt)}
-                      </span>
-                      <Button variant="outline" size="sm">
-                        View
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {/* Stories Tab */}
-          {activeTab === "stories" && userData.isCreator && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {userData.stories?.map((story: any) => (
-                <div 
-                  key={story.id}
-                  className="bg-white dark:bg-dark-900 rounded-xl overflow-hidden shadow-sm border border-parchment-200 dark:border-dark-700 flex flex-col sm:flex-row"
-                >
-                  <div className="sm:w-2/5">
-                    <img 
-                      src={story.coverImage} 
-                      alt={story.title} 
-                      className="w-full h-48 sm:h-full object-cover"
-                    />
-                  </div>
-                  <div className="p-4 sm:p-6 flex-1">
-                    <h3 className="text-xl font-bold text-ink-900 dark:text-white mb-2">
-                      {story.title}
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <p className="text-xs text-ink-500 dark:text-ink-400 mb-1">Chapters</p>
-                        <p className="font-medium text-ink-900 dark:text-white">{story.chaptersCount}</p>
+          {activeTab === "collection" &&
+            (userCollection.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userCollection.map((item) => (
+                  <Link
+                    key={item.id}
+                    to={`/stories/${item.storyId}/chapters/${item.id}`}
+                    className="group"
+                  >
+                    <div className="bg-white dark:bg-dark-800 rounded-lg shadow-sm border border-parchment-200 dark:border-dark-700 overflow-hidden transition-transform duration-200 group-hover:scale-[1.02] group-hover:shadow-md">
+                      <div className="h-48 bg-parchment-100 dark:bg-dark-700 relative">
+                        {item.coverImage ? (
+                          <img
+                            src={item.coverImage}
+                            alt={item.storyTitle}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-ink-400 dark:text-ink-500">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-12 w-12"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1}
+                                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                          <div className="text-white">
+                            <div className="font-medium truncate">
+                              {item.storyTitle}
+                            </div>
+                            <div className="text-sm opacity-90 truncate">
+                              {item.chapterTitle}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs text-ink-500 dark:text-ink-400 mb-1">Collectors</p>
-                        <p className="font-medium text-ink-900 dark:text-white">{story.collectorsCount}</p>
+                      <div className="p-4">
+                        <div className="text-xs text-ink-500 dark:text-ink-400">
+                          Collected {getRelativeTimeString(item.collectedAt)}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-ink-500 dark:text-ink-400">
-                        Updated {getRelativeTimeString(story.lastUpdated)}
-                      </span>
-                      <Button variant="primary" size="sm">
-                        Read
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {/* Activity Tab */}
-          {activeTab === "activity" && (
-            <div className="bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700 overflow-hidden">
-              <div className="divide-y divide-parchment-200 dark:divide-dark-700">
-                {userData.activity?.map((activity: any) => (
-                  <div key={activity.id} className="p-4 sm:p-6 flex items-start space-x-4">
-                    {renderActivityIcon(activity.type)}
-                    <div className="flex-1">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1">
-                        <h4 className="font-medium text-ink-900 dark:text-white">
-                          {activity.type === "publish" && "Published a new chapter"}
-                          {activity.type === "collect" && "Collected a chapter"}
-                          {activity.type === "vote" && "Voted on a story branch"}
-                        </h4>
-                        <span className="text-xs text-ink-500 dark:text-ink-400 sm:ml-4">
-                          {getRelativeTimeString(activity.timestamp)}
-                        </span>
-                      </div>
-                      <p className="text-ink-700 dark:text-ink-200 text-sm">
-                        <span className="font-medium">{activity.storyTitle}</span> - {activity.chapterTitle}
-                      </p>
-                      {activity.type === "vote" && activity.optionChosen && (
-                        <p className="mt-1 text-sm text-ink-600 dark:text-ink-300 bg-parchment-50 dark:bg-dark-800 px-3 py-2 rounded-md mt-2">
-                          Voted for: "{activity.optionChosen}"
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <EmptyStateCard
+                icon={
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-12 w-12"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1}
+                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                    />
+                  </svg>
+                }
+                title="No Collections Yet"
+                description="Start exploring stories and collect chapters to see them here."
+                actionLabel="Explore Stories"
+                actionLink="/stories"
+              />
+            ))}
+
+          {/* Stories Tab */}
+          {activeTab === "stories" &&
+            (userStories.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userStories.map((story) => (
+                  <Link
+                    key={story.id}
+                    to={`/stories/${story.id}`}
+                    className="group"
+                  >
+                    <div className="bg-white dark:bg-dark-800 rounded-lg shadow-sm border border-parchment-200 dark:border-dark-700 overflow-hidden transition-transform duration-200 group-hover:scale-[1.02] group-hover:shadow-md">
+                      <div className="h-48 bg-parchment-100 dark:bg-dark-700 relative">
+                        {story.coverImage ? (
+                          <img
+                            src={story.coverImage}
+                            alt={story.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-ink-400 dark:text-ink-500">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-12 w-12"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1}
+                                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                          <div className="text-white">
+                            <div className="font-medium truncate">
+                              {story.title}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <div className="flex justify-between items-center text-xs text-ink-500 dark:text-ink-400">
+                          <div>
+                            {story.chaptersCount}{" "}
+                            {story.chaptersCount === 1 ? "Chapter" : "Chapters"}
+                          </div>
+                          <div>
+                            Updated {getRelativeTimeString(story.lastUpdated)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <EmptyStateCard
+                icon={
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-12 w-12"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                }
+                title="No Stories Yet"
+                description="Create your first story to begin your creator journey."
+                actionLabel="Create Story"
+                actionLink="/creator/new-story"
+              />
+            ))}
+
+          {/* Activity Tab */}
+          {activeTab === "activity" &&
+            (userActivity.length > 0 ? (
+              <div className="bg-white dark:bg-dark-800 rounded-lg shadow-sm border border-parchment-200 dark:border-dark-700 overflow-hidden">
+                <ul className="divide-y divide-parchment-200 dark:divide-dark-700">
+                  {userActivity.map((activity) => (
+                    <li key={activity.id} className="p-4">
+                      <div className="flex items-start space-x-4">
+                        <div className="flex-shrink-0">
+                          {renderActivityIcon(activity.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-ink-900 dark:text-white">
+                            {activity.type === "publish" && "Published chapter"}
+                            {activity.type === "collect" && "Collected chapter"}
+                            {activity.type === "vote" && "Voted on chapter"}
+                          </p>
+                          <div className="mt-1">
+                            <Link
+                              to={`/stories/${activity.storyId}`}
+                              className="text-primary-600 dark:text-primary-400 hover:underline"
+                            >
+                              {activity.storyTitle}
+                            </Link>
+                            <span className="mx-1 text-ink-400">•</span>
+                            <Link
+                              to={`/stories/${activity.storyId}/chapters/${activity.chapterId}`}
+                              className="text-ink-700 dark:text-ink-300 hover:underline"
+                            >
+                              {activity.chapterTitle}
+                            </Link>
+                          </div>
+                          {activity.type === "vote" &&
+                            activity.optionChosen && (
+                              <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
+                                Voted for: "{activity.optionChosen}"
+                              </p>
+                            )}
+                          <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">
+                            {getRelativeTimeString(activity.timestamp)}
+                          </p>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <EmptyStateCard
+                icon={
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-12 w-12"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                }
+                title="No Activity Yet"
+                description="Your reading and writing activity will appear here."
+                actionLabel="Explore Stories"
+                actionLink="/stories"
+              />
+            ))}
         </motion.div>
       </div>
     </div>

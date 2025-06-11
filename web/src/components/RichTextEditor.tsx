@@ -233,25 +233,32 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     editorRef.current?.focus();
   };
 
-  // Handle editor content changes
+  // Handle input event
   const handleInput = () => {
     if (editorRef.current) {
-      const content = editorRef.current.innerHTML;
-
-      // Add to history
-      historyRef.current.addState(content);
-
-      // Normalize content
+      // Make sure editor content is well-formed
       normalizeEditorContent({ current: editorRef.current });
 
-      // Convert URLs to links
+      // Update content via callback
+      const contentToSave = getCleanEditorContent({
+        current: editorRef.current,
+      });
+      onChange(contentToSave);
+
+      // Check if editor is empty to control placeholder visibility
+      setShowPlaceholder(
+        editorRef.current.textContent?.trim() === "" ||
+          editorRef.current.innerHTML === "<p><br></p>"
+      );
+
+      // Add current state to history
+      historyRef.current.addState(editorRef.current.innerHTML);
+
+      // Update active formats
+      updateActiveFormats();
+
+      // Auto-convert URLs to links
       autoLinkURLs({ current: editorRef.current });
-
-      // Update placeholder visibility
-      setShowPlaceholder(content === "" || content === "<br>");
-
-      // Notify parent component of change
-      onChange(getCleanEditorContent({ current: editorRef.current }));
     }
   };
 

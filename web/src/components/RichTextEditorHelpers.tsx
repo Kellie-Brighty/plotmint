@@ -457,29 +457,59 @@ export const autoLinkURLs = (
   }
 };
 
-// Utility function to get HTML content with proper sanitization
+// Process long strings to ensure proper wrapping
+export const processLongStrings = (html: string): string => {
+  // Create a temporary div to parse the HTML
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = html;
+
+  // Find all text nodes with long strings without spaces
+  const processNode = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE && node.textContent) {
+      // Check if the text has very long strings without spaces (longer than 50 chars)
+      const words = node.textContent.split(/\s+/);
+      let modified = false;
+
+      for (let i = 0; i < words.length; i++) {
+        if (words[i].length > 50) {
+          // Insert zero-width spaces every 20 characters to enable wrapping
+          words[i] = words[i].replace(/(.{20})/g, "$1\u200B");
+          modified = true;
+        }
+      }
+
+      if (modified) {
+        node.textContent = words.join(" ");
+      }
+    } else if (node.hasChildNodes()) {
+      node.childNodes.forEach(processNode);
+    }
+  };
+
+  processNode(tempDiv);
+  return tempDiv.innerHTML;
+};
+
+// Get clean content from editor
 export const getCleanEditorContent = (
   editorRef: RefObject<HTMLDivElement | null>
 ): string => {
   if (!editorRef.current) return "";
 
   // Clone the editor content to avoid modifying the actual DOM
-  const tempDiv = document.createElement("div");
-  tempDiv.innerHTML = editorRef.current.innerHTML;
+  const clone = editorRef.current.cloneNode(true) as HTMLDivElement;
 
-  // Remove zero-width spaces used for cursor positioning
+  // Remove zero-width spaces that might have been added during editing
   const removeZeroWidthSpaces = (node: Node) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      node.textContent = node.textContent?.replace(/\u200B/g, "") || "";
-    } else {
-      for (let i = 0; i < node.childNodes.length; i++) {
-        removeZeroWidthSpaces(node.childNodes[i]);
-      }
+    if (node.nodeType === Node.TEXT_NODE && node.textContent) {
+      node.textContent = node.textContent.replace(/\u200B/g, "");
+    } else if (node.hasChildNodes()) {
+      node.childNodes.forEach(removeZeroWidthSpaces);
     }
   };
 
-  removeZeroWidthSpaces(tempDiv);
+  removeZeroWidthSpaces(clone);
 
-  // Apply other sanitization
-  return sanitizeHTML(tempDiv.innerHTML);
+  // Process long strings to ensure proper wrapping
+  return processLongStrings(clone.innerHTML);
 };
