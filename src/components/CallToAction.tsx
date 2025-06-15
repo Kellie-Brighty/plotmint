@@ -36,12 +36,12 @@ const CallToAction = () => {
           <div className="relative py-12 md:py-16 px-6 md:px-12 text-center md:text-left md:flex md:items-center md:justify-between">
             <div className="md:max-w-lg mb-8 md:mb-0">
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-display font-bold text-white mb-4">
-                Ready to Shape the Next Bestseller?
+                Ready to Create Token-Powered Stories?
               </h2>
               <p className="text-base md:text-lg text-primary-100 dark:text-primary-200 max-w-xl">
-                Join PlotMint today and become part of a new era of interactive
-                storytelling. Create, collect, and influence stories alongside a
-                community of passionate readers and writers.
+                Join PlotMint today and create stories where every chapter
+                generates real economic value. Connect your wallet, write
+                chapters with plot tokens, and earn from reader participation.
               </p>
             </div>
 

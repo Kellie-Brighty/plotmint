@@ -13,7 +13,7 @@
     "@privy-io/react-auth": "^2.14.0",
     "@zoralabs/coins-sdk": "^0.2.1",
     "firebase": "^11.9.0",
-    "framer-motion": "^12.16.0",
+    "framer-motion": "^12.18.1",
     "heroicons": "^2.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

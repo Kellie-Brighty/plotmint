@@ -50,8 +50,9 @@ const Hero = () => {
 
             <p className="text-xl sm:text-2xl md:text-2xl text-ink-700 dark:text-ink-200 mb-8 md:mb-10 font-serif leading-relaxed">
               PlotMint is a decentralized storytelling platform where each
-              chapter is minted as a collectible. Readers don't just read — they
-              collect, vote, and influence the story's direction.
+              chapter features two plot options that become purchasable tokens.
+              Readers buy tokens to vote and directly influence the story's
+              direction.
             </p>
 
             <div className="flex flex-col sm:flex-row justify-center gap-5 md:gap-6">
@@ -137,7 +138,7 @@ const Hero = () => {
                       >
                         <path d="M12 4L4 20H20L12 4Z" fill="currentColor" />
                       </svg>
-                      <span>48 Mints</span>
+                      <span>48 Tokens</span>
                     </div>
                   </div>
                 </div>
@@ -155,25 +156,7 @@ const Hero = () => {
                       >
                         <path d="M12 4L4 20H20L12 4Z" fill="currentColor" />
                       </svg>
-                      <span>37 Mints</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="border border-gray-200 dark:border-dark-700 rounded-lg p-4 hover:border-primary-300 dark:hover:border-primary-700 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition cursor-pointer">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-medium text-ink-900 dark:text-white text-base sm:text-lg">
-                      Activate the temporal shield
-                    </h4>
-                    <div className="bg-primary-100 dark:bg-primary-900/50 text-primary-800 dark:text-primary-200 text-sm px-2 py-1 rounded-full flex items-center">
-                      <svg
-                        className="w-3 h-3 mr-1"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path d="M12 4L4 20H20L12 4Z" fill="currentColor" />
-                      </svg>
-                      <span>29 Mints</span>
+                      <span>37 Tokens</span>
                     </div>
                   </div>
                 </div>
@@ -184,7 +167,7 @@ const Hero = () => {
                   size="lg"
                   className="shadow-sm hover:shadow py-3 px-6 w-full sm:w-auto"
                 >
-                  <span>Mint your choice to vote</span>
+                  <span>Buy tokens to vote</span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-5 w-5 ml-2"

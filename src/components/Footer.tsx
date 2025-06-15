@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import ThemeToggle from "./ThemeToggle";
 
 const Footer = () => {
   return (
@@ -16,13 +15,15 @@ const Footer = () => {
               </span>
             </Link>
             <p className="text-ink-700 dark:text-ink-200 mb-5 max-w-xs">
-              The decentralized storytelling platform where chapters are minted
-              as collectibles and readers influence the story.
+              The decentralized storytelling platform where chapters feature
+              plot options that become purchasable tokens for reader voting.
             </p>
-            <div className="flex items-center">
-              <ThemeToggle />
-              <span className="ml-3 text-sm text-ink-600 dark:text-ink-300">
-                Switch theme
+            <div className="flex items-center space-x-2">
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300">
+                Built on Base Sepolia
+              </span>
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-secondary-100 dark:bg-secondary-900/30 text-secondary-800 dark:text-secondary-300">
+                Powered by Zora
               </span>
             </div>
           </div>
@@ -45,7 +46,7 @@ const Footer = () => {
                   to="/trending"
                   className="text-ink-700 dark:text-ink-200 hover:text-primary-700 dark:hover:text-primary-400 transition"
                 >
-                  Trending Chapters
+                  Trending Tokens
                 </Link>
               </li>
               <li>
@@ -90,18 +91,18 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/faq"
+                  to="/wallet-guide"
                   className="text-ink-700 dark:text-ink-200 hover:text-primary-700 dark:hover:text-primary-400 transition"
                 >
-                  FAQ
+                  Wallet Guide
                 </Link>
               </li>
               <li>
                 <Link
-                  to="/blog"
+                  to="/faq"
                   className="text-ink-700 dark:text-ink-200 hover:text-primary-700 dark:hover:text-primary-400 transition"
                 >
-                  Blog
+                  FAQ
                 </Link>
               </li>
             </ul>
@@ -198,20 +199,27 @@ const Footer = () => {
 
         <div className="border-t border-parchment-200 dark:border-dark-700 pt-6 md:pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-ink-600 dark:text-ink-300 mb-4 md:mb-0">
-            &copy; {new Date().getFullYear()} PlotMint. All rights reserved.
+            © 2024 PlotMint. All rights reserved. Built with ❤️ for the
+            storytelling community.
           </p>
-          <div className="flex space-x-6 md:space-x-8">
+          <div className="flex items-center space-x-4 text-sm text-ink-600 dark:text-ink-300">
+            <Link
+              to="/privacy"
+              className="hover:text-primary-700 dark:hover:text-primary-400 transition"
+            >
+              Privacy Policy
+            </Link>
             <Link
               to="/terms"
-              className="text-sm text-ink-600 dark:text-ink-300 hover:text-primary-700 dark:hover:text-primary-400 transition"
+              className="hover:text-primary-700 dark:hover:text-primary-400 transition"
             >
               Terms of Service
             </Link>
             <Link
-              to="/privacy"
-              className="text-sm text-ink-600 dark:text-ink-300 hover:text-primary-700 dark:hover:text-primary-400 transition"
+              to="/cookies"
+              className="hover:text-primary-700 dark:hover:text-primary-400 transition"
             >
-              Privacy Policy
+              Cookie Policy
             </Link>
           </div>
         </div>

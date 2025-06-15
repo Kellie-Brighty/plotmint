@@ -199,6 +199,17 @@ const ChapterReaderPage = () => {
     };
   }, [currentUser, storyId, chapterId, chapter, requiredReadTime]);
 
+  // Scroll to top when component mounts or chapter changes
+  useEffect(() => {
+    // Scroll window to top
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+
+    // Also scroll the content container to top if it exists
+    if (contentRef.current) {
+      contentRef.current.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    }
+  }, [chapterId]); // Dependency on chapterId ensures scroll happens when chapter changes
+
   // Fetch real data
   useEffect(() => {
     if (!storyId || !chapterId) {

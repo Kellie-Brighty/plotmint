@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../utils/AuthContext";
 import EmptyStateCard from "../components/ui/EmptyStateCard";
+import TokenHoldings from "../components/TokenHoldings";
 import {
   subscribeToReaderCollections,
   subscribeToReadingHistory,
@@ -15,7 +16,7 @@ import {
   type ReaderNotification,
 } from "../utils/storyService";
 
-type Tab = "collections" | "reading" | "voting" | "notifications";
+type Tab = "collections" | "reading" | "voting" | "tokens" | "notifications";
 
 const ReaderDashboardPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>("collections");
@@ -375,6 +376,9 @@ const ReaderDashboardPage = () => {
           </div>
         );
 
+      case "tokens":
+        return <TokenHoldings userId={currentUser?.uid || ""} />;
+
       case "notifications":
         return (
           <div className="bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700 overflow-hidden">
@@ -585,6 +589,17 @@ const ReaderDashboardPage = () => {
             >
               <span className="hidden xs:inline">Voting History</span>
               <span className="xs:hidden">Voting</span>
+            </button>
+            <button
+              className={`mr-4 sm:mr-8 py-4 px-1 text-sm font-medium border-b-2 ${
+                activeTab === "tokens"
+                  ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
+                  : "border-transparent text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-200"
+              }`}
+              onClick={() => setActiveTab("tokens")}
+            >
+              <span className="hidden xs:inline">Token Holdings</span>
+              <span className="xs:hidden">Tokens</span>
             </button>
             <button
               className={`py-4 px-1 text-sm font-medium border-b-2 ${

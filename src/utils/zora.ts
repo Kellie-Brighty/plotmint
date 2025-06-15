@@ -1,4 +1,4 @@
-import type { Address } from 'viem';
+import type { Address } from "viem";
 
 export interface PlotOption {
   name: string;
@@ -19,7 +19,7 @@ export interface PlotVoteStats {
   [symbol: string]: {
     tokenAddress: Address;
     totalVotes: number;
-    volumeETH?: bigint;
+    volumeETH?: string;
     voters: {
       [walletAddress: string]: number;
     };

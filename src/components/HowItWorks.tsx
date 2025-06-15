@@ -4,54 +4,54 @@ const HowItWorks = () => {
   const steps = [
     {
       number: "01",
-      title: "Writer Creates a Story",
+      title: "Writer Connects Wallet",
       description:
-        "Writer connects their wallet, creates a story, adds a title and introduction, then mints the intro as the first chapter.",
+        "Writer connects their crypto wallet to PlotMint, creates a story with title and introduction, then writes the first chapter.",
       colorClass:
         "bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300",
       dotColorClass: "bg-primary-600 dark:bg-primary-500",
     },
     {
       number: "02",
-      title: "Writer Proposes Plot Options",
+      title: "Create Two Plot Options",
       description:
-        "For every chapter, the writer proposes 2-4 different plot options that readers can choose from.",
+        "Every chapter must include exactly two plot options that readers can vote on. These options automatically become purchasable tokens on Base Sepolia.",
       colorClass:
         "bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300",
       dotColorClass: "bg-primary-600 dark:bg-primary-500",
     },
     {
       number: "03",
-      title: "Readers Vote by Minting",
+      title: "Readers Buy Tokens to Vote",
       description:
-        "Readers mint their chosen plot branch as a vote, collecting that option as an NFT and influencing the story's direction.",
+        "Readers purchase plot tokens with ETH to vote for their preferred story direction. Each token purchase directly influences the story outcome.",
       colorClass:
         "bg-secondary-100 dark:bg-secondary-900/40 text-secondary-700 dark:text-secondary-300",
       dotColorClass: "bg-secondary-600 dark:bg-secondary-500",
     },
     {
       number: "04",
-      title: "Winning Plot is Selected",
+      title: "Most Purchased Option Wins",
       description:
-        "The plot option with the most mints automatically becomes the canonical next chapter of the story.",
+        "The plot option with the highest token sales automatically becomes the canonical direction for the next chapter of the story.",
       colorClass:
         "bg-secondary-100 dark:bg-secondary-900/40 text-secondary-700 dark:text-secondary-300",
       dotColorClass: "bg-secondary-600 dark:bg-secondary-500",
     },
     {
       number: "05",
-      title: "Next Chapter is Written",
+      title: "Writer Continues Story",
       description:
-        "The original writer (or another approved creator) writes the next chapter based on the winning plot direction.",
+        "The writer creates the next chapter following the winning plot direction, again with exactly two new options that become tokens.",
       colorClass:
         "bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300",
       dotColorClass: "bg-primary-600 dark:bg-primary-500",
     },
     {
       number: "06",
-      title: "Process Continues",
+      title: "Economic Story Tree",
       description:
-        "The cycle repeats, forming an on-chain, community-guided story tree with multiple paths and endings.",
+        "The cycle repeats, creating a community-driven story where every plot decision has real economic value and reader investment.",
       colorClass:
         "bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300",
       dotColorClass: "bg-primary-600 dark:bg-primary-500",

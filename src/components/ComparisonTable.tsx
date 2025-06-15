@@ -3,58 +3,69 @@ import { motion } from "framer-motion";
 const ComparisonTable = () => {
   const features = [
     {
-      name: "Static content minting",
+      name: "Token-based plot voting",
       plotmint: true,
+      mirror: false,
+      readl: false,
+      jenkins: false,
+      plotmintNote: "(ETH-purchasable tokens)",
+    },
+    {
+      name: "Economic story decisions",
+      plotmint: true,
+      mirror: false,
+      readl: false,
+      jenkins: false,
+      plotmintNote: "(real financial stakes)",
+    },
+    {
+      name: "Mandatory plot options",
+      plotmint: true,
+      mirror: false,
+      readl: false,
+      jenkins: false,
+      plotmintNote: "(every chapter has 2 tokens)",
+    },
+    {
+      name: "Direct reader investment",
+      plotmint: true,
+      mirror: false,
+      readl: false,
+      jenkins: false,
+      plotmintNote: "(buy tokens to vote)",
+    },
+    {
+      name: "Creator revenue streams",
+      plotmint: true,
+      mirror: false,
+      readl: true,
+      readlNote: "(limited)",
+      jenkins: false,
+      plotmintNote: "(token sales + allocated tokens)",
+    },
+    {
+      name: "Wallet-required creation",
+      plotmint: true,
+      mirror: false,
+      readl: false,
+      jenkins: false,
+      plotmintNote: "(Base Sepolia network)",
+    },
+    {
+      name: "Branching story trees",
+      plotmint: true,
+      mirror: false,
+      readl: false,
+      jenkins: false,
+      plotmintNote: "(driven by token purchases)",
+    },
+    {
+      name: "Static content publishing",
+      plotmint: false,
       mirror: true,
       readl: true,
       jenkins: false,
-    },
-    {
-      name: "Interactive voting",
-      plotmint: true,
-      mirror: false,
-      readl: false,
-      jenkins: true,
-      jenkinsNote: "(off-chain)",
-      plotmintNote: "(on-chain via mint)",
-    },
-    {
-      name: "Branching story tree",
-      plotmint: true,
-      mirror: false,
-      readl: false,
-      jenkins: false,
-    },
-    {
-      name: "Reader-driven plot outcomes",
-      plotmint: true,
-      mirror: false,
-      readl: false,
-      jenkins: true,
-      jenkinsNote: "(partial)",
-    },
-    {
-      name: "Chapter-for-chapter collectibles",
-      plotmint: true,
-      mirror: false,
-      readl: true,
-      jenkins: false,
-    },
-    {
-      name: "Co-writing + forking",
-      plotmint: true,
-      mirror: false,
-      readl: false,
-      jenkins: true,
-      jenkinsNote: "(partial)",
-    },
-    {
-      name: "Creator & reader economy",
-      plotmint: true,
-      mirror: false,
-      readl: true,
-      readlNote: "(partial)",
-      jenkins: true,
+      plotmintNote: "(all chapters have interactive tokens)",
     },
   ];
 
@@ -159,11 +170,6 @@ const ComparisonTable = () => {
                     {feature.jenkins ? (
                       <>
                         <CheckIcon />
-                        {feature.jenkinsNote && (
-                          <span className="text-[10px] text-ink-600 dark:text-ink-300">
-                            {feature.jenkinsNote}
-                          </span>
-                        )}
                       </>
                     ) : (
                       <CrossIcon />
@@ -192,7 +198,7 @@ const ComparisonTable = () => {
             Why PlotMint Is Unique
           </h2>
           <p className="text-lg sm:text-xl text-ink-700 dark:text-ink-200 leading-relaxed">
-            See how PlotMint compares to other Web3 publishing platforms
+            See how PlotMint's token-powered storytelling compares to other Web3 publishing platforms
           </p>
         </motion.div>
 
@@ -298,11 +304,6 @@ const ComparisonTable = () => {
                         {feature.jenkins ? (
                           <div className="flex flex-col items-center">
                             <CheckIcon />
-                            {feature.jenkinsNote && (
-                              <span className="text-xs text-ink-600 dark:text-ink-300 mt-1">
-                                {feature.jenkinsNote}
-                              </span>
-                            )}
                           </div>
                         ) : (
                           <CrossIcon />

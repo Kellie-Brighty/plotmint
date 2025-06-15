@@ -1,78 +1,144 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useParams,
+} from "react-router-dom";
+import { AuthProvider } from "./utils/AuthContext";
 import Layout from "./components/Layout";
-import HomePage from "./pages/HomePage";
+import ProtectedRoute from "./components/ProtectedRoute";
+import LandingPage from "./pages/LandingPage";
 import StoriesPage from "./pages/StoriesPage";
-import StoryDetailPage from "./pages/StoryDetailPage";
-import ChapterReaderPage from "./pages/ChapterReaderPage";
-import NotFoundPage from "./pages/NotFoundPage";
-import ScrollToTop from "./components/ScrollToTop";
+import StoryPage from "./pages/StoryDetailPage";
+import ChapterPage from "./pages/ChapterReaderPage";
 import ReaderDashboardPage from "./pages/ReaderDashboardPage";
 import CreatorDashboardPage from "./pages/CreatorDashboardPage";
-import CreateStoryPage from "./pages/CreateStoryPage";
+import NewStoryPage from "./pages/CreateStoryPage";
 import ChapterEditorPage from "./pages/ChapterEditorPage";
-import DiscoveryPage from "./pages/DiscoveryPage";
-import { AuthProvider } from "./utils/AuthContext";
-import PrivateRoute from "./components/auth/PrivateRoute";
+import DiscoverPage from "./pages/DiscoveryPage";
+import PlotVoting from "./components/PlotVoting";
+
+// Wrapper component for PlotVoting to extract URL params
+function PlotVotingPage() {
+  const { storyId, chapterId } = useParams<{
+    storyId: string;
+    chapterId: string;
+  }>();
+
+  return (
+    <PlotVoting
+      storyId={storyId}
+      chapterId={chapterId}
+      creatorId=""
+      plotOptions={[]}
+    />
+  );
+}
 
 function App() {
+  useEffect(() => {
+    // Force dark theme always - remove any light theme classes
+    document.documentElement.classList.remove("light");
+    document.documentElement.classList.add("dark");
+    localStorage.setItem("theme", "dark");
+  }, []);
+
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <ScrollToTop />
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<HomePage />} />
-            <Route path="stories" element={<StoriesPage />} />
-            <Route path="stories/:storyId" element={<StoryDetailPage />} />
-            <Route
-              path="stories/:storyId/chapters/:chapterId"
-              element={<ChapterReaderPage />}
-            />
-            <Route
-              path="dashboard"
-              element={
-                <PrivateRoute>
-                  <ReaderDashboardPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="creator"
-              element={
-                <PrivateRoute>
-                  <CreatorDashboardPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="creator/new-story"
-              element={
-                <PrivateRoute>
-                  <CreateStoryPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="creator/new-chapter"
-              element={
-                <PrivateRoute>
-                  <ChapterEditorPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="creator/edit-chapter/:chapterId"
-              element={
-                <PrivateRoute>
-                  <ChapterEditorPage />
-                </PrivateRoute>
-              }
-            />
-            <Route path="discover" element={<DiscoveryPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <div className="bg-parchment-50 dark:bg-dark-950 min-h-screen">
+        <Router>
+          <Routes>
+            {/* Landing page without layout (standalone) */}
+            <Route path="/" element={<LandingPage />} />
+
+            {/* All other pages with navbar and footer */}
+            <Route element={<Layout />}>
+              {/* Protected story routes - require authentication */}
+              <Route
+                path="/stories"
+                element={
+                  <ProtectedRoute>
+                    <StoriesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/stories/:storyId"
+                element={
+                  <ProtectedRoute>
+                    <StoryPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/stories/:storyId/chapters/:chapterId"
+                element={
+                  <ProtectedRoute>
+                    <ChapterPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/stories/:storyId/chapters/:chapterId/vote"
+                element={
+                  <ProtectedRoute>
+                    <PlotVotingPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Dashboard and creator routes - require authentication */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <ReaderDashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/creator"
+                element={
+                  <ProtectedRoute>
+                    <CreatorDashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/creator/new-story"
+                element={
+                  <ProtectedRoute>
+                    <NewStoryPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/creator/new-chapter"
+                element={
+                  <ProtectedRoute>
+                    <ChapterEditorPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/creator/edit-chapter/:chapterId"
+                element={
+                  <ProtectedRoute>
+                    <ChapterEditorPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Public routes */}
+              <Route path="/discover" element={<DiscoverPage />} />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </div>
     </AuthProvider>
   );
 }

@@ -4,8 +4,11 @@ import { motion } from "framer-motion";
 // import RichTextEditor from "../components/RichTextEditor";
 import ChapterEditor from "../components/ChapterEditor";
 import { useAuth } from "../utils/AuthContext";
+import { useWallet } from "../utils/useWallet";
 import {
   createChapter,
+  createChapterWithTokens,
+  createPlotOptionsFromChoices,
   getStoryById,
   getChapterById,
   notifyFollowersOfNewChapter,
@@ -32,6 +35,8 @@ const ChapterEditorPage = () => {
   const storyIdFromUrl = searchParams.get("storyId");
 
   const { currentUser } = useAuth();
+  const { isConnected, address, getWalletClient, getPublicClient } =
+    useWallet();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(
@@ -40,7 +45,7 @@ const ChapterEditorPage = () => {
   const [chapterData, setChapterData] = useState<ChapterData>({
     title: "",
     content: "",
-    hasChoicePoint: false,
+    hasChoicePoint: true, // Always required
     choiceOptions: ["", ""],
   });
 
@@ -215,21 +220,22 @@ const ChapterEditorPage = () => {
       return;
     }
 
-    if (chapterData.hasChoicePoint) {
-      // Count non-empty options
-      const filledOptions = chapterData.choiceOptions.filter(
-        (option) => option.trim().length > 0
+    // Always require exactly 2 plot options (all chapters must have plot options)
+    const filledOptions = chapterData.choiceOptions.filter(
+      (option) => option.trim().length > 0
+    );
+
+    if (filledOptions.length !== 2) {
+      setError("You must provide exactly 2 plot options before publishing");
+      return;
+    }
+
+    // Always require wallet connection for token creation
+    if (!isConnected) {
+      setError(
+        "Please connect your wallet to create plot tokens for reader voting"
       );
-
-      if (filledOptions.length < 2) {
-        setError("You must provide at least 2 plot options before publishing");
-        return;
-      }
-
-      if (chapterData.choiceOptions.some((option) => !option.trim())) {
-        setError("Please fill in all choice options or remove empty ones");
-        return;
-      }
+      return;
     }
 
     setIsSaving(true);
@@ -259,24 +265,61 @@ const ChapterEditorPage = () => {
         publishedChapterId = chapterId;
         console.log("Draft published with ID:", chapterId);
       } else {
-        // Create new published chapter
-        publishedChapterId = await createChapter(
-          {
-            storyId: storyData.id,
-            title: chapterData.title,
-            content: chapterData.content,
-            hasChoicePoint: chapterData.hasChoicePoint,
-            // Always send an array for choiceOptions, empty if not using choice points
-            choiceOptions: chapterData.hasChoicePoint
-              ? chapterData.choiceOptions.filter(
-                  (option) => option.trim().length > 0
-                ) // Only include non-empty options
-              : [],
-            published: true, // Explicitly set as published
-          },
-          currentUser.uid
-        );
-        console.log("Chapter published with ID:", publishedChapterId);
+        // Create new published chapter - ALWAYS with tokens since plot options are mandatory
+        try {
+          // Generate plot options with metadata
+          const plotOptions = await createPlotOptionsFromChoices(
+            filledOptions,
+            storyData.title,
+            chapterData.title
+          );
+
+          // Get wallet clients for token creation
+          const walletClient = getWalletClient();
+          const publicClient = getPublicClient();
+
+          if (!walletClient || !publicClient) {
+            throw new Error("Failed to get wallet clients for token creation");
+          }
+
+          // Double-check wallet connection before creating tokens
+          if (!walletClient.account && !address) {
+            throw new Error(
+              "Wallet not properly connected - please reconnect your wallet"
+            );
+          }
+
+          console.log("🚀 Creating chapter with plot tokens...");
+          console.log(`📋 Wallet address: ${address}`);
+          console.log(`🎲 Plot options: ${filledOptions.join(", ")}`);
+
+          publishedChapterId = await createChapterWithTokens(
+            {
+              storyId: storyData.id,
+              title: chapterData.title,
+              content: chapterData.content,
+              hasChoicePoint: true, // Always true now
+              choiceOptions: filledOptions,
+              published: true,
+            },
+            currentUser.uid,
+            plotOptions,
+            walletClient,
+            publicClient
+          );
+          console.log(
+            "✅ Chapter with plot tokens published with ID:",
+            publishedChapterId
+          );
+        } catch (tokenError) {
+          console.error("Error creating tokens:", tokenError);
+          setError(
+            `Token creation failed: ${
+              tokenError instanceof Error ? tokenError.message : "Unknown error"
+            }. Please ensure your wallet is properly connected and on Base Sepolia network, then try again.`
+          );
+          return;
+        }
       }
 
       // Notify followers about the new chapter
@@ -378,6 +421,47 @@ const ChapterEditorPage = () => {
                   </div>
                 )}
 
+                {/* Wallet Status and Token Creation Info - Always show since plot options are mandatory */}
+                <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                  <div className="flex items-start">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5 flex-shrink-0"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <div className="text-sm">
+                      <div className="flex items-center mb-1">
+                        <span className="text-blue-800 dark:text-blue-200 font-medium">
+                          Plot Token Creation
+                        </span>
+                        <span
+                          className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
+                            isConnected
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                          }`}
+                        >
+                          {isConnected ? "Wallet Connected" : "Wallet Required"}
+                        </span>
+                      </div>
+                      <p className="text-blue-700 dark:text-blue-300">
+                        {isConnected
+                          ? "Your plot options will be converted to tokens that readers can purchase to vote on the story direction."
+                          : "Connect your wallet to create plot tokens for reader voting. Each plot option becomes a token that readers can buy to influence the story."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {error && (
                   <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 text-sm rounded-md">
                     <strong>Error:</strong> {error}
@@ -417,6 +501,14 @@ const ChapterEditorPage = () => {
                     <span>
                       Create choice points to let readers vote on where the
                       story goes next.
+                    </span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-primary-600 mr-2">•</span>
+                    <span>
+                      Plot options automatically become tokens that readers can
+                      purchase to vote - connect your wallet to enable this
+                      feature.
                     </span>
                   </li>
                   <li className="flex items-start">

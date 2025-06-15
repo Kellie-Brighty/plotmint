@@ -16,6 +16,9 @@ import {
   QueryConstraint,
   limit as limitQuery,
 } from "firebase/firestore";
+import { ZoraService } from "./zoraService";
+import type { PlotOption } from "./zora";
+import type { WalletClient, PublicClient, Address } from "viem";
 
 // Types for our story and chapter data
 export interface StoryData {
@@ -47,6 +50,12 @@ export interface ChapterData {
   published: boolean;
   hasChoicePoint: boolean;
   choiceOptions?: string[];
+  plotTokens?: Array<{
+    name: string;
+    symbol: string;
+    tokenAddress: Address;
+    metadataURI: string;
+  }>;
   order: number;
 }
 
@@ -278,6 +287,228 @@ export const createChapter = async (
     return docRef.id;
   } catch (error) {
     console.error("Error creating chapter:", error);
+    throw error;
+  }
+};
+
+/**
+ * Generate metadata URI for a plot option token
+ * @param plotName - Name of the plot option
+ * @param plotSymbol - Symbol for the token
+ * @param storyTitle - Title of the story
+ * @param chapterTitle - Title of the chapter
+ * @returns JSON metadata object that can be uploaded to IPFS
+ */
+export const generatePlotTokenMetadata = (
+  plotName: string,
+  plotSymbol: string,
+  storyTitle: string,
+  chapterTitle: string
+) => {
+  return {
+    name: `${storyTitle} - ${plotName}`,
+    description: `Vote token for plot option "${plotName}" in chapter "${chapterTitle}" of "${storyTitle}". This token represents your vote for this story direction.`,
+    image: `https://via.placeholder.com/400x400/1f2937/ffffff?text=${encodeURIComponent(
+      plotSymbol
+    )}`,
+    external_url: window.location.origin,
+    attributes: [
+      {
+        trait_type: "Story",
+        value: storyTitle,
+      },
+      {
+        trait_type: "Chapter",
+        value: chapterTitle,
+      },
+      {
+        trait_type: "Plot Option",
+        value: plotName,
+      },
+      {
+        trait_type: "Token Symbol",
+        value: plotSymbol,
+      },
+      {
+        trait_type: "Type",
+        value: "Plot Vote Token",
+      },
+    ],
+  };
+};
+
+/**
+ * Create plot options from choice options with auto-generated symbols and metadata
+ * @param choiceOptions - Array of choice option strings
+ * @param storyTitle - Title of the story
+ * @param chapterTitle - Title of the chapter
+ * @returns Array of PlotOption objects ready for token creation
+ */
+export const createPlotOptionsFromChoices = async (
+  choiceOptions: string[],
+  storyTitle: string,
+  chapterTitle: string
+): Promise<PlotOption[]> => {
+  if (choiceOptions.length !== 2) {
+    throw new Error("Exactly two choice options are required");
+  }
+
+  const plotOptions: PlotOption[] = [];
+
+  for (let i = 0; i < choiceOptions.length; i++) {
+    const choiceText = choiceOptions[i];
+    const shortName =
+      choiceText.substring(0, 30) + (choiceText.length > 30 ? "..." : "");
+    const symbol = `PLOT${i + 1}${Date.now().toString().slice(-4)}`; // e.g., PLOT11234
+
+    // Generate metadata
+    const metadata = generatePlotTokenMetadata(
+      shortName,
+      symbol,
+      storyTitle,
+      chapterTitle
+    );
+
+    // For now, we'll use a data URI for metadata
+    // In production, you'd want to upload to IPFS
+    const metadataURI = `data:application/json;base64,${btoa(
+      JSON.stringify(metadata)
+    )}`;
+
+    plotOptions.push({
+      name: shortName,
+      symbol,
+      metadataURI,
+    });
+  }
+
+  return plotOptions;
+};
+
+/**
+ * Create a new chapter with Zora token integration for plot options
+ * @param chapterData - Chapter data without id, createdAt, updatedAt, creatorId, order
+ * @param userId - ID of the user creating the chapter
+ * @param plotOptions - Plot options for token creation (optional)
+ * @param walletClient - Wallet client for Zora transactions (required if plotOptions provided)
+ * @param publicClient - Public client for Zora transactions (required if plotOptions provided)
+ * @returns Promise with the new chapter ID
+ */
+export const createChapterWithTokens = async (
+  chapterData: Omit<
+    ChapterData,
+    "id" | "createdAt" | "updatedAt" | "creatorId" | "order" | "plotTokens"
+  > & { published?: boolean },
+  userId: string,
+  plotOptions?: PlotOption[],
+  walletClient?: WalletClient,
+  publicClient?: PublicClient
+): Promise<string> => {
+  try {
+    const chaptersRef = collection(db, "chapters");
+
+    // Get current chapter count for this story
+    const storyRef = doc(db, "stories", chapterData.storyId);
+    const storyDoc = await getDoc(storyRef);
+
+    if (!storyDoc.exists()) {
+      throw new Error("Story not found");
+    }
+
+    const storyData = storyDoc.data() as StoryData;
+    const chapterOrder = storyData.chapterCount;
+
+    // Determine if this is the first published chapter
+    const isFirstChapter = chapterOrder === 0;
+
+    let plotTokens: Array<{
+      name: string;
+      symbol: string;
+      tokenAddress: Address;
+      metadataURI: string;
+    }> = [];
+
+    // If chapter has choice points and plot options are provided, create tokens
+    if (chapterData.hasChoicePoint && plotOptions && plotOptions.length > 0) {
+      if (!walletClient || !publicClient) {
+        throw new Error(
+          "Wallet and public clients are required for token creation"
+        );
+      }
+
+      if (plotOptions.length !== 2) {
+        throw new Error(
+          "Exactly two plot options are required for token creation"
+        );
+      }
+
+      // Initialize Zora service
+      const zoraService = new ZoraService();
+
+      // Create a temporary chapter ID for token creation
+      const tempChapterRef = doc(chaptersRef);
+      const tempChapterId = tempChapterRef.id;
+
+      try {
+        // Register plot options as tokens
+        await zoraService.registerPlotOptions(
+          tempChapterId,
+          plotOptions,
+          walletClient,
+          publicClient
+        );
+
+        // Get the created tokens information
+        const voteStats = await zoraService.getPlotVoteStats(tempChapterId);
+
+        // Convert to plotTokens format
+        plotTokens = plotOptions.map((option) => {
+          const tokenInfo = voteStats[option.symbol];
+          return {
+            name: option.name,
+            symbol: option.symbol,
+            tokenAddress: tokenInfo.tokenAddress,
+            metadataURI: option.metadataURI,
+          };
+        });
+
+        console.log(`✅ Created ${plotTokens.length} plot tokens for chapter`);
+      } catch (tokenError) {
+        console.error("Error creating plot tokens:", tokenError);
+        throw new Error(
+          `Failed to create plot tokens: ${
+            tokenError instanceof Error ? tokenError.message : "Unknown error"
+          }`
+        );
+      }
+    }
+
+    const newChapter: Omit<ChapterData, "id"> = {
+      ...chapterData,
+      creatorId: userId,
+      published:
+        chapterData.published !== undefined ? chapterData.published : true,
+      order: chapterOrder,
+      plotTokens: plotTokens.length > 0 ? plotTokens : undefined,
+      createdAt: serverTimestamp() as Timestamp,
+      updatedAt: serverTimestamp() as Timestamp,
+    };
+
+    const docRef = await addDoc(chaptersRef, newChapter);
+
+    // Update the story with new chapter count and published status
+    // A story becomes published when it has at least one chapter
+    await updateDoc(storyRef, {
+      chapterCount: chapterOrder + 1,
+      updatedAt: serverTimestamp(),
+      // If this is the first chapter, set the story to published
+      ...(isFirstChapter ? { published: true } : {}),
+    });
+
+    console.log(`✅ Chapter created with ID: ${docRef.id}`);
+    return docRef.id;
+  } catch (error) {
+    console.error("Error creating chapter with tokens:", error);
     throw error;
   }
 };

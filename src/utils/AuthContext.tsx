@@ -16,6 +16,7 @@ import {
 import type { User } from "./firebase";
 
 import { updateUserProfile } from "./userService";
+import { walletConnector } from "./walletConnector";
 
 interface AuthContextType {
   currentUser: User | null;
@@ -70,11 +71,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // Listen for Firebase auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      const previousUser = currentUser;
       setCurrentUser(user);
 
       if (user) {
         // Initialize user profile when user logs in
         initializeUserProfile(user);
+      } else if (previousUser) {
+        // User logged out - disconnect wallet
+        try {
+          walletConnector.disconnect();
+          console.log("Wallet automatically disconnected on auth state change");
+        } catch (error) {
+          console.error("Error auto-disconnecting wallet:", error);
+        }
       }
 
       setLoading(false);
@@ -124,6 +134,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logOut = async (): Promise<void> => {
+    // Disconnect wallet before logging out
+    try {
+      walletConnector.disconnect();
+      console.log("Wallet disconnected on logout");
+    } catch (error) {
+      console.error("Error disconnecting wallet:", error);
+    }
+
     await signOut(auth);
   };
 

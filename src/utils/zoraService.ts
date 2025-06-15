@@ -1,10 +1,5 @@
 import { db } from "../utils/firebase";
-import {
-  collection,
-  doc,
-  getDoc,
-  setDoc,
-} from "firebase/firestore";
+import { collection, doc, getDoc, setDoc } from "firebase/firestore";
 import {
   createCoin,
   tradeCoin,
@@ -12,8 +7,8 @@ import {
   setApiKey,
 } from "@zoralabs/coins-sdk";
 
-import type { PublicClient, WalletClient, Address} from "viem";
-import { parseEther } from 'viem';
+import type { PublicClient, WalletClient, Address } from "viem";
+import { parseEther } from "viem";
 import type {
   PlotOption,
   VotePayload,
@@ -31,8 +26,8 @@ export class ZoraService {
 
   constructor() {
     this.chainId = parseInt(import.meta.env.VITE_CHAINID as string) || 84532;
-    this.platformReferrer = import.meta.env.VITE_PLATFORM_REFERRER as Address 
-    setApiKey(import.meta.env.VITE_ZORA_API_KEY)
+    this.platformReferrer = import.meta.env.VITE_PLATFORM_REFERRER as Address;
+    setApiKey(import.meta.env.VITE_ZORA_API_KEY);
   }
 
   /**
@@ -51,8 +46,20 @@ export class ZoraService {
     const existing = await getDoc(docRef);
     if (existing.exists()) throw new Error("Chapter already initialized.");
 
-    const payerAddress = walletClient.account?.address;
-    if (!payerAddress) throw new Error("Wallet not connected or missing address");
+    // Get wallet address from account or from the wallet client
+    let payerAddress: Address;
+    if (walletClient.account) {
+      payerAddress = walletClient.account.address;
+    } else {
+      // Fallback: get addresses from wallet client
+      const addresses = await walletClient.getAddresses();
+      if (!addresses || addresses.length === 0) {
+        throw new Error("Wallet not connected or missing address");
+      }
+      payerAddress = addresses[0];
+    }
+
+    console.log(`🔗 Using wallet address: ${payerAddress}`);
 
     const voteData: PlotVoteStats = {};
 
@@ -60,12 +67,14 @@ export class ZoraService {
       if (!option.symbol || !option.name || !option.metadataURI)
         throw new Error("Missing required coin parameters.");
 
+      console.log(`🚀 Creating token: ${option.name} (${option.symbol})`);
+
       const coin = await createCoin(
         {
           name: option.name,
           symbol: option.symbol,
           uri: option.metadataURI,
-          payoutRecipient: payerAddress,
+          payoutRecipient: payerAddress as Address,
           chainId: this.chainId,
           platformReferrer: this.platformReferrer,
           currency: DeployCurrency.ETH,
@@ -74,10 +83,12 @@ export class ZoraService {
         publicClient
       );
 
+      console.log(`✅ Token created at: ${coin.address}`);
+
       voteData[option.symbol] = {
         tokenAddress: coin.address as Address,
         totalVotes: 0,
-        volumeETH: BigInt(0),
+        volumeETH: "0",
         voters: {},
       };
     }
@@ -88,66 +99,71 @@ export class ZoraService {
   /**
    * Performs token purchase via Zora tradeCoin and logs the vote in Firebase
    */
-    public async voteWithETH(
-        payload: VotePayload,
-        walletClient: WalletClient,
-        publicClient: PublicClient
-    ): Promise<void> {
-        const { chapterId, plotSymbol, tokenAddress, voter, amount, orderSize } = payload;
+  public async voteWithETH(
+    payload: VotePayload,
+    walletClient: WalletClient,
+    publicClient: PublicClient
+  ): Promise<void> {
+    const { chapterId, plotSymbol, tokenAddress, voter, amount, orderSize } =
+      payload;
 
-        const recipient = walletClient.account?.address;
-        if (!recipient) throw new Error("Wallet client not connected.");
+    const recipient = walletClient.account?.address;
+    if (!recipient) throw new Error("Wallet client not connected.");
 
-        const buyParams = {
-            direction: "buy" as const,
-            target: tokenAddress,
-            args: {
-            recipient,
-            orderSize: parseEther(orderSize),   
-            minAmountOut: 0n                   
-            }
-        };
+    const buyParams = {
+      direction: "buy" as const,
+      target: tokenAddress,
+      args: {
+        recipient,
+        orderSize: parseEther(orderSize),
+        minAmountOut: 0n,
+      },
+    };
 
-        // Execute buy
-        await tradeCoin(buyParams, walletClient, publicClient);
+    // Execute buy
+    await tradeCoin(buyParams, walletClient, publicClient);
 
-        // Firebase 
-        const docRef = doc(db, "plotVotes", `chapter_${chapterId}`);
-        const snap = await getDoc(docRef);
-        if (!snap.exists()) throw new Error("Chapter not found");
-        const data = snap.data() as PlotVoteStats;
+    // Firebase
+    const docRef = doc(db, "plotVotes", `chapter_${chapterId}`);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) throw new Error("Chapter not found");
+    const data = snap.data() as PlotVoteStats;
 
-        data[plotSymbol].totalVotes++;
-        data[plotSymbol].voters[voter] = (data[plotSymbol].voters[voter] || 0) + amount;
-        data[plotSymbol].volumeETH = (data[plotSymbol].volumeETH || BigInt(0)) + (parseEther(orderSize) || BigInt(0));
+    data[plotSymbol].totalVotes++;
+    data[plotSymbol].voters[voter] =
+      (data[plotSymbol].voters[voter] || 0) + amount;
 
-        await setDoc(docRef, data);
-    }
+    // Convert BigInt to string for Firebase storage
+    const currentVolume = BigInt(data[plotSymbol].volumeETH || "0");
+    const additionalVolume = parseEther(orderSize) || BigInt(0);
+    data[plotSymbol].volumeETH = (currentVolume + additionalVolume).toString();
 
-    public async sellToken(
-        tokenAddress: Address,
-        recipient: Address,
-        amountToSell: bigint,
-        minEthOut: bigint,
-        walletClient: WalletClient,
-        publicClient: PublicClient
-  ): Promise<string> {
-        if (!walletClient.account?.address) throw new Error("Wallet not connected");
-
-        const sellParams = {
-        direction: "sell" as const,
-        target: tokenAddress,
-        args: {
-            recipient,
-            orderSize: amountToSell,
-            minAmountOut: minEthOut,
-        },
-        };
-
-        const result = await tradeCoin(sellParams, walletClient, publicClient);
-        return result.hash;
+    await setDoc(docRef, data);
   }
 
+  public async sellToken(
+    tokenAddress: Address,
+    recipient: Address,
+    amountToSell: bigint,
+    minEthOut: bigint,
+    walletClient: WalletClient,
+    publicClient: PublicClient
+  ): Promise<string> {
+    if (!walletClient.account?.address) throw new Error("Wallet not connected");
+
+    const sellParams = {
+      direction: "sell" as const,
+      target: tokenAddress,
+      args: {
+        recipient,
+        orderSize: amountToSell,
+        minAmountOut: minEthOut,
+      },
+    };
+
+    const result = await tradeCoin(sellParams, walletClient, publicClient);
+    return result.hash;
+  }
 
   /**
    * Returns current vote statistics from Firebase for the chapter

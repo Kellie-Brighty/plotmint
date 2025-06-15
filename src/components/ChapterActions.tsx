@@ -302,7 +302,7 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
           storyId={storyId}
           chapterId={chapterId}
           creatorId={creatorId}
-          choiceOptions={choiceOptions}
+          plotOptions={[]}
           currentVote={voteStatus.selectedOption}
           onVote={handleVote}
         />

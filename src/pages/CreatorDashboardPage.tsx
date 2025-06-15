@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../utils/AuthContext";
+import WriterAssets from "../components/WriterAssets";
 import {
   subscribeToCreatorStories,
   subscribeToChapters,
@@ -25,7 +26,7 @@ interface DraftChapter {
   choices: { id: string; text: string; votes: number }[];
 }
 
-type Tab = "stories" | "analytics" | "chapters";
+type Tab = "stories" | "analytics" | "chapters" | "assets";
 
 const CreatorDashboardPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>("stories");
@@ -823,6 +824,9 @@ const CreatorDashboardPage = () => {
           </div>
         );
 
+      case "assets":
+        return <WriterAssets userId={currentUser?.uid || ""} />;
+
       default:
         return null;
     }
@@ -880,6 +884,16 @@ const CreatorDashboardPage = () => {
                   }`}
                 >
                   Draft Chapters
+                </button>
+                <button
+                  onClick={() => setActiveTab("assets")}
+                  className={`py-3 sm:py-4 px-1 whitespace-nowrap text-sm sm:text-base ${
+                    activeTab === "assets"
+                      ? "border-b-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400 font-medium"
+                      : "border-b-2 border-transparent text-ink-500 hover:text-ink-700 hover:border-ink-300 dark:text-ink-400 dark:hover:text-ink-300 dark:hover:border-dark-500"
+                  }`}
+                >
+                  Token Assets
                 </button>
               </nav>
             </div>

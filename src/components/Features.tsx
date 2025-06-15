@@ -3,9 +3,9 @@ import { motion } from "framer-motion";
 const Features = () => {
   const features = [
     {
-      title: "Token-Gated Branching Storytelling",
+      title: "Token-Based Plot Voting",
       description:
-        "Each chapter ends with multiple plot paths. Readers vote by minting their preferred option, and the most minted branch becomes the canonical next chapter.",
+        "Every chapter features exactly two plot options that automatically become purchasable tokens. Readers buy tokens to vote, and the most purchased option determines the story's direction.",
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -24,9 +24,9 @@ const Features = () => {
       ),
     },
     {
-      title: "Gamified Co-Creation Loop",
+      title: "Direct Reader Investment",
       description:
-        "Readers don't passively consume; they influence, compete, and collect. Writers build with fan involvement, not just after-the-fact feedback.",
+        "Readers purchase plot tokens with ETH, creating direct financial investment in story outcomes. This gamifies reading and gives every vote real economic weight.",
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -45,9 +45,9 @@ const Features = () => {
       ),
     },
     {
-      title: "Fully On-Chain Chapter Tree",
+      title: "Wallet-Connected Creation",
       description:
-        "Each chapter is minted with metadata linking it to the parent chapter and selected branch, forming a narrative graph instead of a simple sequence.",
+        "Writers connect their crypto wallets to create chapters with automatic token generation. Every chapter becomes a real economic marketplace for story decisions.",
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -66,9 +66,9 @@ const Features = () => {
       ),
     },
     {
-      title: "Incentivized Reader-Writer Economy",
+      title: "Creator Revenue Streams",
       description:
-        "Writers earn from every chapter mint and future forks. Readers who mint early and back winning plot directions can resell rare chapters from popular trees.",
+        "Writers earn from every token purchase and can sell their allocated tokens when voting concludes. Successful stories generate ongoing revenue from reader participation.",
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -87,9 +87,9 @@ const Features = () => {
       ),
     },
     {
-      title: "Story Worlds, Not Just Books",
+      title: "Decentralized Story Worlds",
       description:
-        "Enable collaborative universes where multiple writers build in the same world with shared lore, multiple plotlines, and collectible story artifacts.",
+        "Create collaborative universes where multiple writers build interconnected stories. Each plot decision is democratically chosen through token purchases by the community.",
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -108,9 +108,9 @@ const Features = () => {
       ),
     },
     {
-      title: "Built on Zora Protocol",
+      title: "Powered by Zora Protocol",
       description:
-        "Leveraging the power of Zora for minting chapters and voting, ensuring a seamless and transparent web3 experience for all users.",
+        "Built on Zora's robust infrastructure on Base Sepolia, ensuring secure, transparent, and efficient token creation and trading for every plot decision.",
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
