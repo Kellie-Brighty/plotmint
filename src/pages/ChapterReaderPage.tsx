@@ -626,6 +626,7 @@ const ChapterReaderPage = () => {
             hasChoicePoint={chapter.hasChoicePoint}
             readTime={readTime}
             requiredReadTime={requiredReadTime}
+            chapter={chapter}
           />
 
           {/* Back to Story Link */}

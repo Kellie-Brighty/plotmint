@@ -30,3 +30,12 @@ export interface PlotWinner {
   winningSymbol: string;
   tokenAddress: Address;
 }
+
+export interface TradeabilityStatus {
+  isInitialized: boolean;
+  hasHookBalance: boolean;
+  poolExists: boolean;
+  hookAddress?: Address;
+  poolKey?: any;
+  error?: string;
+}

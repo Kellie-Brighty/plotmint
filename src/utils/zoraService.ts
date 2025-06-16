@@ -14,7 +14,74 @@ import type {
   VotePayload,
   PlotVoteStats,
   PlotWinner,
+  TradeabilityStatus,
 } from "./zora";
+
+// CoinV4 Contract ABI - minimal interface for tradeability checks
+const COIN_V4_ABI = [
+  {
+    inputs: [],
+    name: "getPoolKey",
+    outputs: [
+      {
+        components: [
+          { name: "currency0", type: "address" },
+          { name: "currency1", type: "address" },
+          { name: "fee", type: "uint24" },
+          { name: "tickSpacing", type: "int24" },
+          { name: "hooks", type: "address" },
+        ],
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "hooks",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+// Standard ERC20 ABI for balance checks
+const ERC20_ABI = [
+  {
+    inputs: [{ name: "account", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+// Pool Manager ABI for pool state checks
+const POOL_MANAGER_ABI = [
+  {
+    inputs: [
+      {
+        components: [
+          { name: "currency0", type: "address" },
+          { name: "currency1", type: "address" },
+          { name: "fee", type: "uint24" },
+          { name: "tickSpacing", type: "int24" },
+          { name: "hooks", type: "address" },
+        ],
+        name: "key",
+        type: "tuple",
+      },
+    ],
+    name: "getSlot0",
+    outputs: [
+      { name: "sqrtPriceX96", type: "uint160" },
+      { name: "tick", type: "int24" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
 
 /**
  * @class ZoraService
@@ -23,11 +90,153 @@ import type {
 export class ZoraService {
   private chainId: number; // Base Sepolia
   private platformReferrer: Address;
+  // You'll need to get this from your environment or Zora docs
+  private poolManagerAddress: Address =
+    "0x0000000000000000000000000000000000000000" as Address; // TODO: Replace with actual pool manager address
 
   constructor() {
     this.chainId = parseInt(import.meta.env.VITE_CHAINID as string) || 84532;
     this.platformReferrer = import.meta.env.VITE_PLATFORM_REFERRER as Address;
     setApiKey(import.meta.env.VITE_ZORA_API_KEY);
+
+    // TODO: Set actual pool manager address from environment
+    // this.poolManagerAddress = import.meta.env.VITE_POOL_MANAGER_ADDRESS as Address;
+  }
+
+  /**
+   * Checks if a CoinV4 token is tradeable by verifying pool initialization and liquidity
+   */
+  public async checkTokenTradeability(
+    tokenAddress: Address,
+    publicClient: PublicClient
+  ): Promise<TradeabilityStatus> {
+    try {
+      console.log(`🔍 Checking tradeability for token: ${tokenAddress}`);
+
+      // Step 1: Get pool key from the token contract
+      let poolKey;
+      try {
+        poolKey = await publicClient.readContract({
+          address: tokenAddress,
+          abi: COIN_V4_ABI,
+          functionName: "getPoolKey",
+        });
+        console.log(`✅ Pool key retrieved:`, poolKey);
+      } catch (error) {
+        console.error(`❌ Failed to get pool key:`, error);
+        return {
+          isInitialized: false,
+          hasHookBalance: false,
+          poolExists: false,
+          error:
+            "Failed to retrieve pool key - token may not be CoinV4 contract",
+        };
+      }
+
+      // Step 2: Get hook address
+      let hookAddress: Address;
+      try {
+        hookAddress = await publicClient.readContract({
+          address: tokenAddress,
+          abi: COIN_V4_ABI,
+          functionName: "hooks",
+        });
+        console.log(`✅ Hook address: ${hookAddress}`);
+      } catch (error) {
+        console.error(`❌ Failed to get hook address:`, error);
+        return {
+          isInitialized: false,
+          hasHookBalance: false,
+          poolExists: false,
+          error: "Failed to retrieve hook address",
+        };
+      }
+
+      // Step 3: Check if pool exists in PoolManager (if we have the address)
+      let poolExists = true; // Default to true if we can't check
+      if (
+        this.poolManagerAddress !== "0x0000000000000000000000000000000000000000"
+      ) {
+        try {
+          const slot0 = await publicClient.readContract({
+            address: this.poolManagerAddress,
+            abi: POOL_MANAGER_ABI,
+            functionName: "getSlot0",
+            args: [poolKey],
+          });
+          poolExists = slot0[0] !== BigInt(0); // sqrtPriceX96 should be > 0
+          console.log(
+            `✅ Pool exists check: ${poolExists}, sqrtPriceX96: ${slot0[0]}`
+          );
+        } catch (error) {
+          console.warn(`⚠️ Could not verify pool existence:`, error);
+          // Don't fail here, continue with other checks
+        }
+      }
+
+      // Step 4: Check if hook has token balance (liquidity)
+      let hasHookBalance = false;
+      try {
+        const hookBalance = await publicClient.readContract({
+          address: tokenAddress,
+          abi: ERC20_ABI,
+          functionName: "balanceOf",
+          args: [hookAddress],
+        });
+        hasHookBalance = hookBalance > BigInt(0);
+        console.log(
+          `✅ Hook balance: ${hookBalance.toString()}, has balance: ${hasHookBalance}`
+        );
+      } catch (error) {
+        console.error(`❌ Failed to check hook balance:`, error);
+        return {
+          isInitialized: false,
+          hasHookBalance: false,
+          poolExists,
+          hookAddress,
+          poolKey,
+          error: "Failed to check hook balance",
+        };
+      }
+
+      // Step 5: Determine if token is initialized (has pool key and hook)
+      const isInitialized =
+        !!poolKey &&
+        hookAddress !== "0x0000000000000000000000000000000000000000";
+
+      const status: TradeabilityStatus = {
+        isInitialized,
+        hasHookBalance,
+        poolExists,
+        hookAddress,
+        poolKey,
+      };
+
+      console.log(`📊 Tradeability status:`, status);
+      return status;
+    } catch (error) {
+      console.error(`💥 Unexpected error checking tradeability:`, error);
+      return {
+        isInitialized: false,
+        hasHookBalance: false,
+        poolExists: false,
+        error: error instanceof Error ? error.message : "Unexpected error",
+      };
+    }
+  }
+
+  /**
+   * Quick check if token is ready for trading
+   */
+  public async isTokenTradeable(
+    tokenAddress: Address,
+    publicClient: PublicClient
+  ): Promise<boolean> {
+    const status = await this.checkTokenTradeability(
+      tokenAddress,
+      publicClient
+    );
+    return status.isInitialized && status.hasHookBalance && status.poolExists;
   }
 
   /**
@@ -110,20 +319,45 @@ export class ZoraService {
     const recipient = walletClient.account?.address;
     if (!recipient) throw new Error("Wallet client not connected.");
 
+    const orderSizeInWei = parseEther(orderSize);
+
+    // 🧪 TESTING: ChatGPT's systematic debugging approach
+    // Original values (commented out):
+    // const minAmountOut = orderSizeInWei / BigInt(1000); // Very small amount to allow for high slippage
+    // tradeReferrer: this.platformReferrer, // Use platform referrer from env
+
+    // TEST 1: Ultra-permissive parameters to isolate the issue
+    const minAmountOut = BigInt(0); // Was: orderSizeInWei / BigInt(1000)
+    const sqrtPriceLimitX96 = BigInt(0); // Keep as 0 (no change)
+    const tradeReferrer =
+      "0x0000000000000000000000000000000000000000" as Address; // Was: this.platformReferrer
+
     const buyParams = {
       direction: "buy" as const,
       target: tokenAddress,
       args: {
         recipient,
-        orderSize: parseEther(orderSize),
-        minAmountOut: 0n,
+        orderSize: orderSizeInWei,
+        minAmountOut,
+        sqrtPriceLimitX96,
+        tradeReferrer,
       },
     };
+
+    console.log("🧪 TEST 1 - Ultra-permissive parameters:", {
+      target: tokenAddress,
+      recipient,
+      orderSize: orderSizeInWei.toString(),
+      minAmountOut: minAmountOut.toString(),
+      sqrtPriceLimitX96: sqrtPriceLimitX96.toString(),
+      tradeReferrer,
+      note: "Testing with most permissive parameters first",
+    });
 
     // Execute buy
     await tradeCoin(buyParams, walletClient, publicClient);
 
-    // Firebase
+    // Firebase logging remains the same
     const docRef = doc(db, "plotVotes", `chapter_${chapterId}`);
     const snap = await getDoc(docRef);
     if (!snap.exists()) throw new Error("Chapter not found");
@@ -135,7 +369,7 @@ export class ZoraService {
 
     // Convert BigInt to string for Firebase storage
     const currentVolume = BigInt(data[plotSymbol].volumeETH || "0");
-    const additionalVolume = parseEther(orderSize) || BigInt(0);
+    const additionalVolume = orderSizeInWei;
     data[plotSymbol].volumeETH = (currentVolume + additionalVolume).toString();
 
     await setDoc(docRef, data);

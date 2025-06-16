@@ -6,6 +6,8 @@ import {
   hasUserCollectedChapter,
   createNotification,
 } from "../utils/storyService";
+  // import { ZoraService } from "../utils/zoraService";
+  // import type { PlotVoteStats } from "../utils/zora";
 import PlotVoting from "./PlotVoting";
 import ReadReward from "./ReadReward";
 import { motion } from "framer-motion";
@@ -18,6 +20,7 @@ interface ChapterActionsProps {
   hasChoicePoint: boolean;
   readTime?: number;
   requiredReadTime?: number;
+  chapter?: any; // Add chapter data to access plotTokens
 }
 
 const ChapterActions: React.FC<ChapterActionsProps> = ({
@@ -28,12 +31,14 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
   hasChoicePoint,
   readTime = 0,
   requiredReadTime = 0,
+  chapter,
 }) => {
   const { currentUser } = useAuth();
   const [isCollecting, setIsCollecting] = useState(false);
   const [isCollected, setIsCollected] = useState(false);
   const [collectError, setCollectError] = useState<string | null>(null);
   const [collectSuccess, setCollectSuccess] = useState(false);
+  const [plotOptions, setPlotOptions] = useState<any[]>([]);
   const [voteStatus, setVoteStatus] = useState<{
     selectedOption: number | null;
     hasVoted: boolean;
@@ -44,6 +49,48 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
 
   // Check if user can collect
   const userCanCollect = canCollectStory(creatorId, currentUser?.uid);
+
+  // Use chapter's plotTokens data
+  useEffect(() => {
+    const createPlotOptionsFromChapter = () => {
+      if (hasChoicePoint && choiceOptions.length > 0) {
+        // Check if chapter has plotTokens (tokens already deployed)
+        if (chapter?.plotTokens && chapter.plotTokens.length > 0) {
+          // Use the plotTokens from the chapter
+          const formattedOptions = chapter.plotTokens.map(
+            (token: any, index: number) => ({
+              name: choiceOptions[index] || token.name, // Use choice text as name
+              symbol: token.symbol,
+              tokenAddress: token.tokenAddress,
+              currentPrice: 0.001, // Mock price for now
+              totalVotes: 0, // Will be updated from vote subscription
+              volumeETH: 0,
+            })
+          );
+
+          console.log("Using plotTokens from chapter:", formattedOptions);
+          setPlotOptions(formattedOptions);
+        } else {
+          // No tokens deployed yet, show choice options without token addresses
+          console.log(
+            "No plotTokens found, showing choice options without tokens"
+          );
+          const emptyOptions = choiceOptions.map((choiceText, index) => ({
+            name: choiceText,
+            symbol: `PLOT${index + 1}`,
+            tokenAddress: undefined,
+            currentPrice: 0.001,
+            totalVotes: 0,
+            volumeETH: 0,
+          }));
+
+          setPlotOptions(emptyOptions);
+        }
+      }
+    };
+
+    createPlotOptionsFromChapter();
+  }, [hasChoicePoint, choiceOptions, chapter]);
 
   // Check if the user has already collected this chapter
   useEffect(() => {
@@ -139,6 +186,8 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
         chapterTitle,
         result: choiceText,
       });
+
+      // Note: Plot options will be updated automatically via the PlotVoting component's vote subscription
     } catch (error) {
       console.error("Error creating vote notification:", error);
     }
@@ -302,7 +351,7 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
           storyId={storyId}
           chapterId={chapterId}
           creatorId={creatorId}
-          plotOptions={[]}
+          plotOptions={plotOptions}
           currentVote={voteStatus.selectedOption}
           onVote={handleVote}
         />

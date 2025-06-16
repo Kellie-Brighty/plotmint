@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
 const Footer = () => {
+  const currentYear = new Date().getFullYear();
   return (
     <footer className="bg-parchment-100 dark:bg-dark-800 pt-12 pb-8">
       <div className="content-wrapper">
@@ -199,8 +200,8 @@ const Footer = () => {
 
         <div className="border-t border-parchment-200 dark:border-dark-700 pt-6 md:pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-ink-600 dark:text-ink-300 mb-4 md:mb-0">
-            © 2024 PlotMint. All rights reserved. Built with ❤️ for the
-            storytelling community.
+            © {currentYear} PlotMint. All rights reserved. Built with ❤️ by
+            Trextechies.
           </p>
           <div className="flex items-center space-x-4 text-sm text-ink-600 dark:text-ink-300">
             <Link
