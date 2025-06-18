@@ -2,7 +2,6 @@ import { db } from "../utils/firebase";
 import { collection, doc, getDoc, setDoc } from "firebase/firestore";
 import {
   createCoin,
-  tradeCoin,
   DeployCurrency,
   setApiKey,
 } from "@zoralabs/coins-sdk";
@@ -90,6 +89,7 @@ const POOL_MANAGER_ABI = [
 export class ZoraService {
   private chainId: number; // Base Sepolia
   private platformReferrer: Address;
+  private readonly TRADE_CONTRACT: Address = import.meta.env.VITE_TRADE_CONTRACT as Address;
   // You'll need to get this from your environment or Zora docs
   private poolManagerAddress: Address =
     "0x0000000000000000000000000000000000000000" as Address; // TODO: Replace with actual pool manager address
@@ -306,7 +306,7 @@ export class ZoraService {
   }
 
   /**
-   * Performs token purchase via Zora tradeCoin and logs the vote in Firebase
+   * Uses CoinTrader contract to buy tokens (vote) on behalf of the user
    */
   public async voteWithETH(
     payload: VotePayload,
@@ -321,43 +321,44 @@ export class ZoraService {
 
     const orderSizeInWei = parseEther(orderSize);
 
-    // 🧪 TESTING: ChatGPT's systematic debugging approach
-    // Original values (commented out):
-    // const minAmountOut = orderSizeInWei / BigInt(1000); // Very small amount to allow for high slippage
-    // tradeReferrer: this.platformReferrer, // Use platform referrer from env
-
-    // TEST 1: Ultra-permissive parameters to isolate the issue
-    const minAmountOut = BigInt(0); // Was: orderSizeInWei / BigInt(1000)
-    const sqrtPriceLimitX96 = BigInt(0); // Keep as 0 (no change)
-    const tradeReferrer =
-      "0x0000000000000000000000000000000000000000" as Address; // Was: this.platformReferrer
-
-    const buyParams = {
-      direction: "buy" as const,
-      target: tokenAddress,
-      args: {
+    // --- Simulate contract call to CoinTrader ---
+    const { request } = await publicClient.simulateContract({
+      account: walletClient.account,
+      address: this.TRADE_CONTRACT,
+      abi: [
+        {
+          name: "tradeCoin",
+          type: "function",
+          stateMutability: "payable",
+          inputs: [
+            { name: "token", type: "address" },
+            { name: "isBuy", type: "bool" },
+            { name: "recipient", type: "address" },
+            { name: "amountIn", type: "uint256" },
+            { name: "minAmountOut", type: "uint256" },
+            { name: "sqrtPriceLimitX96", type: "uint160" },
+            { name: "tradeReferrer", type: "address" },
+          ],
+          outputs: [{ name: "success", type: "bool" }],
+        },
+      ],
+      functionName: "tradeCoin",
+      args: [
+        tokenAddress,
+        true, // isBuy
         recipient,
-        orderSize: orderSizeInWei,
-        minAmountOut,
-        sqrtPriceLimitX96,
-        tradeReferrer,
-      },
-    };
-
-    console.log("🧪 TEST 1 - Ultra-permissive parameters:", {
-      target: tokenAddress,
-      recipient,
-      orderSize: orderSizeInWei.toString(),
-      minAmountOut: minAmountOut.toString(),
-      sqrtPriceLimitX96: sqrtPriceLimitX96.toString(),
-      tradeReferrer,
-      note: "Testing with most permissive parameters first",
+        orderSizeInWei,
+        0n, // minAmountOut
+        0n, // sqrtPriceLimitX96
+        "0x0000000000000000000000000000000000000000", // tradeReferrer
+      ],
+      value: orderSizeInWei,
     });
 
-    // Execute buy
-    await tradeCoin(buyParams, walletClient, publicClient);
+    // --- Execute actual trade ---
+    await walletClient.writeContract(request);
 
-    // Firebase logging remains the same
+    // --- Log vote in Firebase ---
     const docRef = doc(db, "plotVotes", `chapter_${chapterId}`);
     const snap = await getDoc(docRef);
     if (!snap.exists()) throw new Error("Chapter not found");
@@ -367,14 +368,15 @@ export class ZoraService {
     data[plotSymbol].voters[voter] =
       (data[plotSymbol].voters[voter] || 0) + amount;
 
-    // Convert BigInt to string for Firebase storage
     const currentVolume = BigInt(data[plotSymbol].volumeETH || "0");
-    const additionalVolume = orderSizeInWei;
-    data[plotSymbol].volumeETH = (currentVolume + additionalVolume).toString();
+    data[plotSymbol].volumeETH = (currentVolume + orderSizeInWei).toString();
 
     await setDoc(docRef, data);
   }
 
+  /**
+   * Uses CoinTrader contract to sell tokens
+   */
   public async sellToken(
     tokenAddress: Address,
     recipient: Address,
@@ -383,20 +385,40 @@ export class ZoraService {
     walletClient: WalletClient,
     publicClient: PublicClient
   ): Promise<string> {
-    if (!walletClient.account?.address) throw new Error("Wallet not connected");
-
-    const sellParams = {
-      direction: "sell" as const,
-      target: tokenAddress,
-      args: {
+    const { request } = await publicClient.simulateContract({
+      account: walletClient.account,
+      address: this.TRADE_CONTRACT,
+      abi: [
+        {
+          name: "tradeCoin",
+          type: "function",
+          stateMutability: "payable",
+          inputs: [
+            { name: "token", type: "address" },
+            { name: "isBuy", type: "bool" },
+            { name: "recipient", type: "address" },
+            { name: "amountIn", type: "uint256" },
+            { name: "minAmountOut", type: "uint256" },
+            { name: "sqrtPriceLimitX96", type: "uint160" },
+            { name: "tradeReferrer", type: "address" },
+          ],
+          outputs: [{ name: "success", type: "bool" }],
+        },
+      ],
+      functionName: "tradeCoin",
+      args: [
+        tokenAddress,
+        false, // isBuy
         recipient,
-        orderSize: amountToSell,
-        minAmountOut: minEthOut,
-      },
-    };
+        amountToSell,
+        minEthOut,
+        0n, // sqrtPriceLimitX96
+        "0x0000000000000000000000000000000000000000", // tradeReferrer
+      ],
+    });
 
-    const result = await tradeCoin(sellParams, walletClient, publicClient);
-    return result.hash;
+    const txHash = await walletClient.writeContract(request);
+    return txHash;
   }
 
   /**
