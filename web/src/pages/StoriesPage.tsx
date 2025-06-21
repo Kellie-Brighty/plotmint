@@ -35,12 +35,15 @@ const StoriesPage = () => {
     setLoading(true);
     setError(null);
 
+    console.log("🔍 StoriesPage: Setting up story subscription...");
+
     // Convert the UI filter/sort to the service filter format
     const filter: StoriesFilter = {};
 
     // Apply genre filter if not "All"
     if (activeFilter !== "All") {
       filter.genre = activeFilter;
+      console.log("📂 Genre filter applied:", activeFilter);
     }
 
     // Apply sort order
@@ -63,8 +66,22 @@ const StoriesPage = () => {
         break;
     }
 
+    console.log("🔧 StoriesPage filter:", filter);
+
     // Subscribe to real-time updates
     const unsubscribe = subscribeToStories((stories) => {
+      console.log("📚 StoriesPage received stories:", stories.length);
+      console.log(
+        "📋 Stories data:",
+        stories.map((s) => ({
+          id: s.id,
+          title: s.title,
+          published: s.published,
+          chapterCount: s.chapterCount,
+          createdAt: s.createdAt,
+        }))
+      );
+
       setStories(stories);
       setLoading(false);
     }, filter);

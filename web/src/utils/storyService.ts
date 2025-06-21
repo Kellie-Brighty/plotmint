@@ -15,6 +15,7 @@ import {
   onSnapshot,
   QueryConstraint,
   limit as limitQuery,
+  limit,
 } from "firebase/firestore";
 import { ZoraService } from "./zoraService";
 import type { PlotOption } from "./zora";
@@ -56,7 +57,16 @@ export interface ChapterData {
     tokenAddress: Address;
     metadataURI: string;
   }>;
+  plotOptions?: Array<{
+    name: string;
+    symbol: string;
+    tokenAddress: Address;
+    metadataURI: string;
+    isWinning?: boolean;
+  }>;
+  voteEndTime?: Timestamp;
   order: number;
+  nftContractAddress?: string;
 }
 
 export interface PlotVote {
@@ -261,7 +271,7 @@ export const createChapter = async (
     const chapterOrder = storyData.chapterCount;
 
     // Determine if this is the first published chapter
-    const isFirstChapter = chapterOrder === 0;
+    // const isFirstChapter = chapterOrder === 0;
 
     const newChapter: Omit<ChapterData, "id"> = {
       ...chapterData,
@@ -276,13 +286,21 @@ export const createChapter = async (
     const docRef = await addDoc(chaptersRef, newChapter);
 
     // Update the story with new chapter count and published status
-    // A story becomes published when it has at least one chapter
-    await updateDoc(storyRef, {
+    // If this chapter is published, ensure the story is also marked as published
+    const updateData: any = {
       chapterCount: chapterOrder + 1,
       updatedAt: serverTimestamp(),
-      // If this is the first chapter, set the story to published
-      ...(isFirstChapter ? { published: true } : {}),
-    });
+    };
+
+    // If this chapter is published, mark the story as published too
+    if (newChapter.published) {
+      updateData.published = true;
+      console.log(
+        `📖 Marking story "${storyData.title}" as published due to chapter creation`
+      );
+    }
+
+    await updateDoc(storyRef, updateData);
 
     return docRef.id;
   } catch (error) {
@@ -392,6 +410,7 @@ export const createPlotOptionsFromChoices = async (
  * @param plotOptions - Plot options for token creation (optional)
  * @param walletClient - Wallet client for Zora transactions (required if plotOptions provided)
  * @param publicClient - Public client for Zora transactions (required if plotOptions provided)
+ * @param nftContractAddress - NFT contract address for token creation (optional)
  * @returns Promise with the new chapter ID
  */
 export const createChapterWithTokens = async (
@@ -402,24 +421,24 @@ export const createChapterWithTokens = async (
   userId: string,
   plotOptions?: PlotOption[],
   walletClient?: WalletClient,
-  publicClient?: PublicClient
+  publicClient?: PublicClient,
+  nftContractAddress?: string
 ): Promise<string> => {
+  const chaptersRef = collection(db, "chapters");
+
   try {
-    const chaptersRef = collection(db, "chapters");
+    // Get the next order number for this story
+    const existingChaptersQuery = query(
+      chaptersRef,
+      where("storyId", "==", chapterData.storyId),
+      orderBy("order", "desc"),
+      limit(1)
+    );
 
-    // Get current chapter count for this story
-    const storyRef = doc(db, "stories", chapterData.storyId);
-    const storyDoc = await getDoc(storyRef);
-
-    if (!storyDoc.exists()) {
-      throw new Error("Story not found");
-    }
-
-    const storyData = storyDoc.data() as StoryData;
-    const chapterOrder = storyData.chapterCount;
-
-    // Determine if this is the first published chapter
-    const isFirstChapter = chapterOrder === 0;
+    const existingChaptersSnapshot = await getDocs(existingChaptersQuery);
+    const nextOrder = existingChaptersSnapshot.empty
+      ? 1
+      : (existingChaptersSnapshot.docs[0].data().order || 0) + 1;
 
     let plotTokens: Array<{
       name: string;
@@ -428,8 +447,8 @@ export const createChapterWithTokens = async (
       metadataURI: string;
     }> = [];
 
-    // If chapter has choice points and plot options are provided, create tokens
-    if (chapterData.hasChoicePoint && plotOptions && plotOptions.length > 0) {
+    // Handle plot token creation if plot options are provided
+    if (plotOptions && plotOptions.length > 0) {
       if (!walletClient || !publicClient) {
         throw new Error(
           "Wallet and public clients are required for token creation"
@@ -483,32 +502,49 @@ export const createChapterWithTokens = async (
       }
     }
 
+    // Create the chapter document with all data
     const newChapter: Omit<ChapterData, "id"> = {
       ...chapterData,
       creatorId: userId,
-      published:
-        chapterData.published !== undefined ? chapterData.published : true,
-      order: chapterOrder,
-      plotTokens: plotTokens.length > 0 ? plotTokens : undefined,
+      order: nextOrder,
+      plotTokens,
+      ...(nftContractAddress && { nftContractAddress }), // Only include if defined
       createdAt: serverTimestamp() as Timestamp,
       updatedAt: serverTimestamp() as Timestamp,
     };
 
+    // Add the chapter to Firestore
     const docRef = await addDoc(chaptersRef, newChapter);
 
-    // Update the story with new chapter count and published status
-    // A story becomes published when it has at least one chapter
-    await updateDoc(storyRef, {
-      chapterCount: chapterOrder + 1,
-      updatedAt: serverTimestamp(),
-      // If this is the first chapter, set the story to published
-      ...(isFirstChapter ? { published: true } : {}),
-    });
-
     console.log(`✅ Chapter created with ID: ${docRef.id}`);
+
+    // Update the story's chapter count and last updated time
+    const storyRef = doc(db, "stories", chapterData.storyId);
+    const storySnap = await getDoc(storyRef);
+
+    if (storySnap.exists()) {
+      const storyData = storySnap.data() as StoryData;
+
+      // Prepare update data
+      const updateData: any = {
+        chapterCount: (storyData.chapterCount || 0) + 1,
+        updatedAt: serverTimestamp(),
+      };
+
+      // If this chapter is published, mark the story as published too
+      if (newChapter.published) {
+        updateData.published = true;
+        console.log(
+          `📖 Marking story "${storyData.title}" as published due to chapter with tokens creation`
+        );
+      }
+
+      await updateDoc(storyRef, updateData);
+    }
+
     return docRef.id;
   } catch (error) {
-    console.error("Error creating chapter with tokens:", error);
+    console.error("Error creating chapter:", error);
     throw error;
   }
 };
@@ -642,29 +678,116 @@ export const voteForPlotChoice = async (
 export const getAllStories = async (limit?: number): Promise<StoryData[]> => {
   try {
     const storiesRef = collection(db, "stories");
+
+    // First, let's get all published stories and log them
+    console.log("🔍 Fetching all published stories for discovery...");
+
+    // Simplified query - remove compound orderBy that might be causing issues
     let storiesQuery = query(
       storiesRef,
       where("published", "==", true), // Only get published stories
       where("chapterCount", ">", 0), // Only get stories with at least one chapter
-      orderBy("chapterCount"), // Order by chapter count
-      orderBy("createdAt", "desc") // Then by creation date
+      orderBy("chapterCount", "desc") // Order by chapter count only
     );
 
     if (limit) {
       storiesQuery = query(storiesQuery, limitQuery(limit));
     }
 
+    console.log(
+      "🔧 Executing query with filters: published=true, chapterCount>0"
+    );
+
     const querySnapshot = await getDocs(storiesQuery);
     const stories: StoryData[] = [];
 
+    console.log(`📊 Query returned ${querySnapshot.docs.length} documents`);
+
     querySnapshot.forEach((doc) => {
-      stories.push({ id: doc.id, ...doc.data() } as StoryData);
+      const storyData = { id: doc.id, ...doc.data() } as StoryData;
+      console.log("📖 Found published story:", {
+        id: storyData.id,
+        title: storyData.title,
+        published: storyData.published,
+        chapterCount: storyData.chapterCount,
+        createdAt: storyData.createdAt,
+      });
+      stories.push(storyData);
     });
+
+    console.log(`✅ Total stories found for discovery: ${stories.length}`);
+
+    // If no stories found, let's debug what's in the database
+    if (stories.length === 0) {
+      console.log(
+        "⚠️ No stories found! Let's check what's actually in the database..."
+      );
+
+      // Check all stories regardless of filters
+      const debugQuery = query(storiesRef, orderBy("createdAt", "desc"));
+      const debugSnapshot = await getDocs(debugQuery);
+
+      console.log(
+        `🔍 DEBUG: Total stories in database: ${debugSnapshot.docs.length}`
+      );
+
+      debugSnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        console.log("📋 Story in DB:", {
+          id: doc.id,
+          title: data.title,
+          published: data.published,
+          publishedType: typeof data.published,
+          chapterCount: data.chapterCount,
+          chapterCountType: typeof data.chapterCount,
+          meetsRequirements:
+            data.published === true && data.chapterCount > 0 ? "✅" : "❌",
+          issues: [
+            data.published !== true ? "Not published" : null,
+            !(data.chapterCount > 0)
+              ? `Chapter count issue: ${data.chapterCount}`
+              : null,
+          ].filter(Boolean),
+        });
+      });
+    }
 
     return stories;
   } catch (error) {
-    console.error("Error getting stories:", error);
-    throw error;
+    console.error("❌ Error getting stories:", error);
+    console.error("❌ Error details:", {
+      message: error instanceof Error ? error.message : "Unknown error",
+      code: (error as any)?.code,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    // If the compound query fails, try a simpler approach
+    console.log("🔄 Trying fallback query...");
+    try {
+      const storiesRef = collection(db, "stories");
+      const fallbackQuery = query(
+        storiesRef,
+        where("published", "==", true),
+        orderBy("createdAt", "desc")
+      );
+
+      const fallbackSnapshot = await getDocs(fallbackQuery);
+      const fallbackStories: StoryData[] = [];
+
+      fallbackSnapshot.forEach((doc) => {
+        const storyData = { id: doc.id, ...doc.data() } as StoryData;
+        // Filter client-side for chapterCount > 0
+        if (storyData.chapterCount > 0) {
+          fallbackStories.push(storyData);
+        }
+      });
+
+      console.log(`✅ Fallback query found ${fallbackStories.length} stories`);
+      return fallbackStories;
+    } catch (fallbackError) {
+      console.error("❌ Fallback query also failed:", fallbackError);
+      throw error;
+    }
   }
 };
 
@@ -716,23 +839,28 @@ export const subscribeToStories = (
   // Always include published=true by default unless explicitly specified
   if (filter?.published !== undefined) {
     constraints.push(where("published", "==", filter.published));
+    console.log("🔍 subscribeToStories: published filter =", filter.published);
   } else {
     constraints.push(where("published", "==", true));
+    console.log("🔍 subscribeToStories: default published filter = true");
   }
 
   // Add all other filters
   if (filter?.genre) {
     constraints.push(where("genre", "==", filter.genre));
+    console.log("🔍 subscribeToStories: genre filter =", filter.genre);
   }
 
   if (filter?.creatorId) {
     constraints.push(where("creatorId", "==", filter.creatorId));
+    console.log("🔍 subscribeToStories: creatorId filter =", filter.creatorId);
   }
 
   // Handle sorting
   const sortField = filter?.sortBy || "createdAt";
   const sortDir = filter?.sortDirection || "desc";
   constraints.push(orderBy(sortField, sortDir));
+  console.log("🔍 subscribeToStories: sorting by", sortField, sortDir);
 
   // If tags are specified, we'll need to filter them after getting results
   // as Firestore doesn't support direct array contains any with other queries
@@ -740,7 +868,13 @@ export const subscribeToStories = (
   // Add limit if specified
   if (filter?.limit) {
     constraints.push(limitQuery(filter.limit));
+    console.log("🔍 subscribeToStories: limit =", filter.limit);
   }
+
+  console.log(
+    "🔍 subscribeToStories: Final query constraints:",
+    constraints.length
+  );
 
   // Create and execute query
   const q = query(storiesRef, ...constraints);
@@ -749,10 +883,23 @@ export const subscribeToStories = (
   const unsubscribe = onSnapshot(
     q,
     (snapshot) => {
+      console.log(
+        `📊 subscribeToStories: Query returned ${snapshot.docs.length} documents`
+      );
+
       const stories: StoryData[] = [];
 
       snapshot.forEach((doc) => {
         const storyData = { id: doc.id, ...doc.data() } as StoryData;
+
+        console.log("📖 subscribeToStories: Found story:", {
+          id: storyData.id,
+          title: storyData.title,
+          published: storyData.published,
+          chapterCount: storyData.chapterCount,
+          genre: storyData.genre,
+          creatorId: storyData.creatorId,
+        });
 
         // Filter by tags if specified
         if (filter?.tags && filter.tags.length > 0) {
@@ -760,17 +907,29 @@ export const subscribeToStories = (
             filter.tags?.includes(tag)
           );
           if (hasMatchingTag) {
+            console.log("✅ Story matches tag filter");
             stories.push(storyData);
+          } else {
+            console.log("❌ Story doesn't match tag filter");
           }
         } else {
+          console.log("✅ No tag filter, including story");
           stories.push(storyData);
         }
       });
 
+      console.log(
+        `🎯 subscribeToStories: Final filtered stories count: ${stories.length}`
+      );
       callback(stories);
     },
     (error) => {
-      console.error("Error subscribing to stories:", error);
+      console.error("❌ Error subscribing to stories:", error);
+      console.error("❌ Error details:", {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+      });
       callback([]);
     }
   );
@@ -2084,18 +2243,31 @@ export const updateChapter = async (
       updatedAt: serverTimestamp(),
     });
 
-    // If this is being published for the first time, update the story
-    if (
-      chapterData.published === true &&
-      chapterSnap.data().published === false
-    ) {
+    // If this chapter is being published, ensure the story is also marked as published
+    if (chapterData.published === true) {
       const storyId = chapterSnap.data().storyId;
       const storyRef = doc(db, "stories", storyId);
+      const storySnap = await getDoc(storyRef);
 
-      // Update the story timestamp
-      await updateDoc(storyRef, {
-        updatedAt: serverTimestamp(),
-      });
+      if (storySnap.exists()) {
+        const storyData = storySnap.data() as StoryData;
+
+        // If the story isn't published yet, mark it as published
+        if (!storyData.published) {
+          console.log(
+            `📖 Marking story "${storyData.title}" as published due to chapter publication`
+          );
+          await updateDoc(storyRef, {
+            published: true,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          // Just update the timestamp
+          await updateDoc(storyRef, {
+            updatedAt: serverTimestamp(),
+          });
+        }
+      }
     }
 
     console.log("Chapter updated successfully:", chapterId);
@@ -2104,3 +2276,422 @@ export const updateChapter = async (
     throw error;
   }
 };
+
+/**
+ * Add plot tokens to an existing chapter
+ * @param chapterId - ID of the chapter to add tokens to
+ * @param plotOptions - Plot options for token creation
+ * @param walletClient - Wallet client for Zora transactions
+ * @param publicClient - Public client for Zora transactions
+ * @returns Promise that resolves when tokens are added
+ */
+export const addPlotTokensToChapter = async (
+  chapterId: string,
+  plotOptions: PlotOption[],
+  walletClient: WalletClient,
+  publicClient: PublicClient
+): Promise<void> => {
+  try {
+    if (plotOptions.length !== 2) {
+      throw new Error(
+        "Exactly two plot options are required for token creation"
+      );
+    }
+
+    // Get the chapter to make sure it exists
+    const chapterData = await getChapterById(chapterId);
+    if (!chapterData) {
+      throw new Error("Chapter not found");
+    }
+
+    // Check if chapter already has plot tokens
+    if (chapterData.plotTokens && chapterData.plotTokens.length > 0) {
+      throw new Error("Chapter already has plot tokens");
+    }
+
+    // Initialize Zora service
+    const zoraService = new ZoraService();
+
+    // Register plot options as tokens
+    await zoraService.registerPlotOptions(
+      chapterId,
+      plotOptions,
+      walletClient,
+      publicClient
+    );
+
+    // Get the created tokens information
+    const voteStats = await zoraService.getPlotVoteStats(chapterId);
+
+    // Convert to plotTokens format
+    const plotTokens = plotOptions.map((option) => {
+      const tokenInfo = voteStats[option.symbol];
+      return {
+        name: option.name,
+        symbol: option.symbol,
+        tokenAddress: tokenInfo.tokenAddress,
+        metadataURI: option.metadataURI,
+      };
+    });
+
+    // Update the chapter with plot tokens
+    await updateChapter(chapterId, {
+      plotTokens,
+    });
+
+    console.log(
+      `✅ Added ${plotTokens.length} plot tokens to chapter ${chapterId}`
+    );
+  } catch (error) {
+    console.error("Error adding plot tokens to chapter:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get all stories created by a specific user
+ * @param userId - The user ID
+ * @returns Promise with array of stories
+ */
+export const getUserStories = async (userId: string): Promise<StoryData[]> => {
+  try {
+    console.log(`🔍 Fetching stories for user: ${userId}`);
+
+    const storiesRef = collection(db, "stories");
+    const q = query(
+      storiesRef,
+      where("creatorId", "==", userId),
+      orderBy("createdAt", "desc")
+    );
+
+    const querySnapshot = await getDocs(q);
+    const stories = querySnapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        } as StoryData)
+    );
+
+    console.log(`📚 Found ${stories.length} stories for user ${userId}:`);
+    stories.forEach((story) => {
+      console.log("📖 User story:", {
+        id: story.id,
+        title: story.title,
+        published: story.published,
+        publishedType: typeof story.published,
+        chapterCount: story.chapterCount,
+        chapterCountType: typeof story.chapterCount,
+        createdAt: story.createdAt,
+      });
+    });
+
+    return stories;
+  } catch (error) {
+    console.error("❌ Error getting user stories:", error);
+    return [];
+  }
+};
+
+/**
+ * Get all chapters created by a specific user for a specific story
+ * @param storyId - The story ID
+ * @param userId - The user ID
+ * @returns Promise with array of chapters
+ */
+export const getUserChapters = async (
+  storyId: string,
+  userId: string
+): Promise<ChapterData[]> => {
+  try {
+    const chaptersRef = collection(db, "chapters");
+    const q = query(
+      chaptersRef,
+      where("storyId", "==", storyId),
+      where("creatorId", "==", userId),
+      orderBy("order", "asc")
+    );
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        } as ChapterData)
+    );
+  } catch (error) {
+    console.error("Error getting user chapters:", error);
+    return [];
+  }
+};
+
+/**
+ * Get all tokens purchased by a specific user
+ * @param userId - The user ID
+ * @returns Promise with array of purchased tokens
+ */
+export const getUserPurchasedTokens = async (
+  _userId: string
+): Promise<any[]> => {
+  try {
+    // TODO: Implement fetching tokens purchased by user from other creators
+    // This would involve querying blockchain for user's token balances
+    // across all plot tokens in all stories
+    return [];
+  } catch (error) {
+    console.error("Error getting user purchased tokens:", error);
+    return [];
+  }
+};
+
+/**
+ * Utility function to fix story data inconsistencies
+ * This can be called to repair stories that might have incorrect chapterCount
+ * or other data integrity issues
+ */
+export const fixStoryDataInconsistencies = async (
+  userId?: string
+): Promise<void> => {
+  try {
+    console.log("🔧 Starting story data repair process...");
+
+    const storiesRef = collection(db, "stories");
+    let storiesQuery;
+
+    if (userId) {
+      // Fix stories for a specific user
+      storiesQuery = query(storiesRef, where("creatorId", "==", userId));
+      console.log(`🔧 Fixing stories for user: ${userId}`);
+    } else {
+      // Fix all stories
+      storiesQuery = query(storiesRef, orderBy("createdAt", "desc"));
+      console.log("🔧 Fixing all stories");
+    }
+
+    const storiesSnapshot = await getDocs(storiesQuery);
+    let fixedCount = 0;
+
+    for (const storyDoc of storiesSnapshot.docs) {
+      const storyData = storyDoc.data() as StoryData;
+      const storyId = storyDoc.id;
+
+      // Get actual chapter count for this story
+      const chaptersRef = collection(db, "chapters");
+      const publishedChaptersQuery = query(
+        chaptersRef,
+        where("storyId", "==", storyId),
+        where("published", "==", true)
+      );
+
+      const chaptersSnapshot = await getDocs(publishedChaptersQuery);
+      const actualChapterCount = chaptersSnapshot.docs.length;
+      const hasPublishedChapters = actualChapterCount > 0;
+
+      // Check if story data needs updating
+      const needsUpdate =
+        storyData.chapterCount !== actualChapterCount ||
+        storyData.published !== hasPublishedChapters;
+
+      if (needsUpdate) {
+        console.log(`🔧 Fixing story "${storyData.title}":`, {
+          oldChapterCount: storyData.chapterCount,
+          newChapterCount: actualChapterCount,
+          oldPublished: storyData.published,
+          newPublished: hasPublishedChapters,
+        });
+
+        await updateDoc(doc(db, "stories", storyId), {
+          chapterCount: actualChapterCount,
+          published: hasPublishedChapters,
+          updatedAt: serverTimestamp(),
+        });
+
+        fixedCount++;
+      }
+    }
+
+    console.log(`✅ Fixed ${fixedCount} stories`);
+  } catch (error) {
+    console.error("❌ Error fixing story data:", error);
+    throw error;
+  }
+};
+
+/**
+ * Update a chapter with NFT contract address
+ * This ensures the NFT contract address is properly saved to the database
+ */
+export const updateChapterWithNFT = async (
+  chapterId: string,
+  nftContractAddress: string
+): Promise<void> => {
+  try {
+    console.log(
+      `🎨 Saving NFT contract address for chapter ${chapterId}:`,
+      nftContractAddress
+    );
+
+    const chapterRef = doc(db, "chapters", chapterId);
+
+    // First verify the chapter exists
+    const chapterSnap = await getDoc(chapterRef);
+    if (!chapterSnap.exists()) {
+      throw new Error(`Chapter ${chapterId} not found`);
+    }
+
+    // Update with NFT contract address
+    await updateDoc(chapterRef, {
+      nftContractAddress,
+      updatedAt: serverTimestamp(),
+    });
+
+    console.log(`✅ NFT contract address saved for chapter ${chapterId}`);
+
+    // Verify the update worked
+    const updatedChapterSnap = await getDoc(chapterRef);
+    const updatedData = updatedChapterSnap.data();
+
+    if (updatedData?.nftContractAddress === nftContractAddress) {
+      console.log("✅ NFT contract address verification successful");
+    } else {
+      console.error("❌ NFT contract address verification failed:", {
+        expected: nftContractAddress,
+        actual: updatedData?.nftContractAddress,
+      });
+    }
+  } catch (error) {
+    console.error("❌ Error updating chapter with NFT:", error);
+    throw error;
+  }
+};
+
+/**
+ * Debug function to check story data and understand discovery issues
+ * Call this from browser console: window.debugStoryDiscovery()
+ */
+export const debugStoryDiscovery = async (): Promise<void> => {
+  try {
+    console.log("🔍 === STORY DISCOVERY DEBUG ===");
+
+    // Get ALL stories (including unpublished)
+    const storiesRef = collection(db, "stories");
+    const allStoriesQuery = query(storiesRef, orderBy("createdAt", "desc"));
+    const allStoriesSnapshot = await getDocs(allStoriesQuery);
+
+    console.log(
+      `📚 Total stories in database: ${allStoriesSnapshot.docs.length}`
+    );
+
+    allStoriesSnapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      console.log(`📖 Story "${data.title}":`, {
+        id: doc.id,
+        published: data.published,
+        chapterCount: data.chapterCount,
+        createdAt: data.createdAt,
+        meetsDiscoveryRequirements:
+          data.published && data.chapterCount > 0 ? "✅" : "❌",
+      });
+    });
+
+    // Now test the actual getAllStories function
+    console.log("\n🔍 Testing getAllStories() function:");
+    const discoveryStories = await getAllStories();
+    console.log(
+      `📋 Stories returned by getAllStories(): ${discoveryStories.length}`
+    );
+
+    discoveryStories.forEach((story) => {
+      console.log(
+        `✅ Discovery story: "${story.title}" (chapters: ${story.chapterCount})`
+      );
+    });
+
+    // Check published stories specifically
+    const publishedQuery = query(
+      storiesRef,
+      where("published", "==", true),
+      orderBy("createdAt", "desc")
+    );
+    const publishedSnapshot = await getDocs(publishedQuery);
+    console.log(`\n📊 Published stories: ${publishedSnapshot.docs.length}`);
+
+    publishedSnapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      console.log(
+        `📋 Published: "${data.title}" (chapters: ${data.chapterCount})`
+      );
+    });
+
+    console.log("🔍 === END DEBUG ===");
+  } catch (error) {
+    console.error("❌ Debug function error:", error);
+  }
+};
+
+/**
+ * Simple utility to manually mark stories as published if they have published chapters
+ * Call this from browser console: window.markStoriesAsPublished()
+ */
+export const markStoriesAsPublished = async (): Promise<void> => {
+  try {
+    console.log("🔧 Manually marking stories as published...");
+
+    const storiesRef = collection(db, "stories");
+    const allStoriesQuery = query(storiesRef, orderBy("createdAt", "desc"));
+    const storiesSnapshot = await getDocs(allStoriesQuery);
+
+    let fixedCount = 0;
+
+    for (const storyDoc of storiesSnapshot.docs) {
+      const storyData = storyDoc.data() as StoryData;
+      const storyId = storyDoc.id;
+
+      console.log(`🔍 Checking story "${storyData.title}":`, {
+        published: storyData.published,
+        chapterCount: storyData.chapterCount,
+      });
+
+      // If story is not published, check if it has published chapters
+      if (!storyData.published) {
+        const chaptersRef = collection(db, "chapters");
+        const publishedChaptersQuery = query(
+          chaptersRef,
+          where("storyId", "==", storyId),
+          where("published", "==", true)
+        );
+
+        const chaptersSnapshot = await getDocs(publishedChaptersQuery);
+        const publishedChapterCount = chaptersSnapshot.docs.length;
+
+        console.log(`📊 Story has ${publishedChapterCount} published chapters`);
+
+        if (publishedChapterCount > 0) {
+          console.log(`✅ Marking story "${storyData.title}" as published`);
+
+          await updateDoc(doc(db, "stories", storyId), {
+            published: true,
+            chapterCount: publishedChapterCount,
+            updatedAt: serverTimestamp(),
+          });
+
+          fixedCount++;
+        }
+      }
+    }
+
+    console.log(`🎉 Fixed ${fixedCount} stories`);
+  } catch (error) {
+    console.error("❌ Error marking stories as published:", error);
+    throw error;
+  }
+};
+
+// Make function available globally for browser console
+if (typeof window !== "undefined") {
+  (window as any).debugStoryDiscovery = debugStoryDiscovery;
+  (window as any).getAllStories = getAllStories;
+  (window as any).fixStoryDataInconsistencies = fixStoryDataInconsistencies;
+  (window as any).markStoriesAsPublished = markStoriesAsPublished;
+}

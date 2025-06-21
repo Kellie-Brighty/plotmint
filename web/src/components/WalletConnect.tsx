@@ -24,8 +24,17 @@ export const WalletConnect: React.FC<WalletConnectProps> = ({
     try {
       await connect();
     } catch (error: any) {
-      if (error.message.includes("MetaMask is not installed")) {
-        window.open("https://metamask.io/download/", "_blank");
+      console.error("Wallet connection error:", error);
+
+      if (error.code === 4001) {
+        // User rejected the connection request
+        console.log("User rejected wallet connection");
+      } else if (error.message.includes("No Ethereum wallet detected")) {
+        console.log("No wallet detected");
+        // Don't show alert or open pages - just log the error
+      } else {
+        // Other connection errors - just log them, don't show alerts
+        console.log(`Failed to connect wallet: ${error.message}`);
       }
     }
   };

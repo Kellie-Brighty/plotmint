@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useWallet } from "../utils/useWallet";
+import { useCoinTrader } from "../utils/useCoinTrader";
+import { getUserPurchasedTokens } from "../utils/storyService";
+import type { Address } from "viem";
 
 interface TokenHolding {
   chapterId: string;
@@ -7,7 +10,7 @@ interface TokenHolding {
   chapterTitle: string;
   plotSymbol: string;
   plotName: string;
-  tokenAddress: string;
+  tokenAddress: Address;
   tokenCount: number;
   purchasePrice: number; // ETH spent
   currentValue: number; // Current token value in ETH
@@ -22,7 +25,8 @@ interface TokenHoldingsProps {
 }
 
 export const TokenHoldings: React.FC<TokenHoldingsProps> = ({ userId }) => {
-  const {  isConnected } = useWallet();
+  const { address, isConnected } = useWallet();
+  const { getTokenPrice, getTokenBalance } = useCoinTrader();
   const [holdings, setHoldings] = useState<TokenHolding[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedHolding, setSelectedHolding] = useState<TokenHolding | null>(
@@ -30,52 +34,67 @@ export const TokenHoldings: React.FC<TokenHoldingsProps> = ({ userId }) => {
   );
 
   useEffect(() => {
-    if (userId && isConnected) {
+    if (userId && isConnected && address) {
       fetchTokenHoldings();
     }
-  }, [userId, isConnected]);
+  }, [userId, isConnected, address]);
 
   const fetchTokenHoldings = async () => {
     setLoading(true);
     try {
-      // TODO: Implement actual token holdings fetch
-      // This will integrate with ZoraService to get user's token positions
+      if (!address) return;
 
-      // Mock data for now
-      const mockHoldings: TokenHolding[] = [
-        {
-          chapterId: "chapter1",
-          storyTitle: "The Shadow Beyond",
-          chapterTitle: "Chapter 3: The Choice",
-          plotSymbol: "HEAL",
-          plotName: "The Healer's Path",
-          tokenAddress: "0x123...",
-          tokenCount: 50,
-          purchasePrice: 0.05,
-          currentValue: 0.08,
-          profitLoss: 0.03,
-          canSell: false,
-          voteEndTime: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours from now
-          isWinningOption: undefined,
-        },
-        {
-          chapterId: "chapter2",
-          storyTitle: "Digital Dreams",
-          chapterTitle: "Chapter 2: The Algorithm",
-          plotSymbol: "CODE",
-          plotName: "Code the Future",
-          tokenAddress: "0x456...",
-          tokenCount: 25,
-          purchasePrice: 0.03,
-          currentValue: 0.02,
-          profitLoss: -0.01,
-          canSell: true,
-          voteEndTime: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-          isWinningOption: true,
-        },
-      ];
+      // Get user's token purchases from Firebase
+      const purchaseHistory = await getUserPurchasedTokens(userId);
+      const holdingsData: TokenHolding[] = [];
 
-      setHoldings(mockHoldings);
+      for (const purchase of purchaseHistory) {
+        try {
+          // Get current token balance from contract
+          const currentBalance = await getTokenBalance(
+            purchase.tokenAddress as Address,
+            address
+          );
+
+          if (currentBalance > 0) {
+            // Get current token price
+            const currentPrice = await getTokenPrice(
+              purchase.tokenAddress as Address
+            );
+
+            // Calculate current value and P&L
+            const currentValue = (currentBalance * currentPrice) / 100; // Convert from wei
+            const profitLoss = currentValue - purchase.totalSpent;
+
+            holdingsData.push({
+              chapterId: purchase.chapterId,
+              storyTitle: purchase.storyTitle,
+              chapterTitle: purchase.chapterTitle,
+              plotSymbol: purchase.plotSymbol,
+              plotName: purchase.plotName,
+              tokenAddress: purchase.tokenAddress as Address,
+              tokenCount: currentBalance,
+              purchasePrice: purchase.totalSpent,
+              currentValue,
+              profitLoss,
+              canSell: purchase.voteEndTime
+                ? new Date() > new Date(purchase.voteEndTime)
+                : false,
+              voteEndTime: purchase.voteEndTime
+                ? new Date(purchase.voteEndTime)
+                : new Date(),
+              isWinningOption: purchase.isWinningOption,
+            });
+          }
+        } catch (error) {
+          console.error(
+            `Error fetching data for token ${purchase.plotSymbol}:`,
+            error
+          );
+        }
+      }
+
+      setHoldings(holdingsData);
     } catch (error) {
       console.error("Error fetching token holdings:", error);
     } finally {

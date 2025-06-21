@@ -1,22 +1,45 @@
 import React, { useState, useEffect } from "react";
 import { useWallet } from "../utils/useWallet";
+import { useCoinTrader } from "../utils/useCoinTrader";
+import { useChapterNFT } from "../utils/useChapterNFT";
+import { getUserStories, getUserChapters } from "../utils/storyService";
+import { ZoraService } from "../utils/zoraService";
+import type { ChapterData } from "../utils/storyService";
+import type { Address } from "viem";
+
+interface PlotOption {
+  symbol: string;
+  name: string;
+  tokenAddress: Address;
+  allocatedTokens: number; // Writer gets allocated tokens on creation
+  currentValue: number; // Current token value in ETH
+  totalVotes: number; // Total tokens purchased by readers
+  isWinning: boolean;
+}
 
 interface WriterAsset {
   chapterId: string;
   storyTitle: string;
   chapterTitle: string;
-  plotOptions: {
-    symbol: string;
-    name: string;
-    tokenAddress: string;
-    allocatedTokens: number; // Tokens allocated to writer on creation
-    currentValue: number; // Current value in ETH
-    totalVotes: number;
-    isWinning?: boolean;
-  }[];
+  plotOptions: PlotOption[];
   voteEndTime: Date;
   canSell: boolean;
   createdAt: Date;
+}
+
+interface NFTCollection {
+  chapterId: string;
+  storyTitle: string;
+  chapterTitle: string;
+  contractAddress: Address;
+  name: string;
+  symbol: string;
+  currentEdition: number;
+  maxEditions: number;
+  mintPrice: string; // ETH
+  totalMinted: number;
+  creatorMinted: boolean;
+  royaltiesEarned: number; // ETH earned from secondary sales
 }
 
 interface PurchasedToken {
@@ -25,7 +48,7 @@ interface PurchasedToken {
   chapterTitle: string;
   plotSymbol: string;
   plotName: string;
-  tokenAddress: string;
+  tokenAddress: Address;
   tokenCount: number;
   purchasePrice: number;
   currentValue: number;
@@ -39,121 +62,315 @@ interface WriterAssetsProps {
 }
 
 export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
-  const { isConnected } = useWallet();
+  const { isConnected, address } = useWallet();
+  const { getTokenPrice, getTokenSupply, getTokenBalance } = useCoinTrader();
+  const { getChapterNFTData } = useChapterNFT();
+
   const [writerAssets, setWriterAssets] = useState<WriterAsset[]>([]);
+  const [nftCollections, setNftCollections] = useState<NFTCollection[]>([]);
   const [purchasedTokens, setPurchasedTokens] = useState<PurchasedToken[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"created" | "purchased">(
+  const [activeTab, setActiveTab] = useState<"created" | "nfts" | "purchased">(
     "created"
   );
   const [_selectedAsset, setSelectedAsset] = useState<WriterAsset | null>(null);
 
   useEffect(() => {
     if (userId && isConnected) {
-      fetchWriterAssets();
-      fetchPurchasedTokens();
+      fetchAllAssets();
     }
   }, [userId, isConnected]);
 
+  const fetchAllAssets = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchWriterAssets(),
+        fetchNFTCollections(),
+        fetchPurchasedTokens(),
+      ]);
+    } catch (error) {
+      console.error("Error fetching assets:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchWriterAssets = async () => {
     try {
-      // TODO: Implement actual writer assets fetch
-      // This will get all plot options created by the writer
+      console.log("🔍 Fetching writer assets for user:", userId);
 
-      // Mock data for now
-      const mockAssets: WriterAsset[] = [
-        {
-          chapterId: "chapter1",
-          storyTitle: "The Shadow Beyond",
-          chapterTitle: "Chapter 3: The Choice",
-          plotOptions: [
-            {
-              symbol: "HEAL",
-              name: "The Healer's Path",
-              tokenAddress: "0x123...",
-              allocatedTokens: 100, // Writer gets 100 tokens on creation
-              currentValue: 0.15,
-              totalVotes: 45,
-              isWinning: true,
-            },
-            {
-              symbol: "GUARD",
-              name: "The Guardian's Mantle",
-              tokenAddress: "0x456...",
-              allocatedTokens: 100,
-              currentValue: 0.08,
-              totalVotes: 23,
-              isWinning: false,
-            },
-          ],
-          voteEndTime: new Date(Date.now() + 8 * 60 * 60 * 1000), // 8 hours from now
-          canSell: false,
-          createdAt: new Date(Date.now() - 16 * 60 * 60 * 1000), // 16 hours ago
-        },
-        {
-          chapterId: "chapter2",
-          storyTitle: "The Shadow Beyond",
-          chapterTitle: "Chapter 4: The Aftermath",
-          plotOptions: [
-            {
-              symbol: "PEACE",
-              name: "Path of Peace",
-              tokenAddress: "0x789...",
-              allocatedTokens: 100,
-              currentValue: 0.12,
-              totalVotes: 67,
-              isWinning: true,
-            },
-            {
-              symbol: "WAR",
-              name: "Path of War",
-              tokenAddress: "0xabc...",
-              allocatedTokens: 100,
-              currentValue: 0.05,
-              totalVotes: 34,
-              isWinning: false,
-            },
-          ],
-          voteEndTime: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-          canSell: true,
-          createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000), // 26 hours ago
-        },
-      ];
+      // Get user's stories and published chapters
+      const stories = await getUserStories(userId);
+      console.log("📚 Found stories:", stories.length);
 
-      setWriterAssets(mockAssets);
+      const publishedChapters: ChapterData[] = [];
+
+      for (const story of stories) {
+        const chapters = await getUserChapters(story.id!, userId);
+        console.log(
+          `📖 Story "${story.title}" has ${chapters.length} chapters`
+        );
+
+        // Filter for published chapters that have either plotTokens OR plotOptions
+        const chaptersWithTokens = chapters.filter((ch) => {
+          const hasTokens =
+            ch.published &&
+            ((ch.plotTokens && ch.plotTokens.length > 0) ||
+              (ch.plotOptions && ch.plotOptions.length > 0));
+          console.log(
+            `Chapter "${ch.title}": published=${ch.published}, hasTokens=${hasTokens}`,
+            {
+              plotTokens: ch.plotTokens?.length || 0,
+              plotOptions: ch.plotOptions?.length || 0,
+            }
+          );
+          return hasTokens;
+        });
+
+        publishedChapters.push(...chaptersWithTokens);
+      }
+
+      console.log(
+        "📊 Total chapters with plot tokens:",
+        publishedChapters.length
+      );
+
+      const assets: WriterAsset[] = [];
+      const zoraService = new ZoraService();
+
+      for (const chapter of publishedChapters) {
+        // Use plotTokens if available, otherwise fall back to plotOptions
+        const tokens = chapter.plotTokens || chapter.plotOptions || [];
+
+        if (tokens.length === 0) continue;
+
+        const story = stories.find((s) => s.id === chapter.storyId);
+        if (!story) continue;
+
+        console.log(
+          `🎯 Processing chapter "${chapter.title}" with ${tokens.length} tokens`
+        );
+
+        const plotOptions: PlotOption[] = [];
+
+        // Try to get vote stats from ZoraService
+        let voteStats = null;
+        try {
+          voteStats = await zoraService.getPlotVoteStats(chapter.id!);
+          console.log("📊 Vote stats for chapter:", voteStats);
+        } catch (error) {
+          console.log("No vote stats found for chapter:", chapter.id);
+        }
+
+        for (const token of tokens) {
+          try {
+            // Get real token data from contract
+            const tokenPrice = await getTokenPrice(
+              token.tokenAddress as Address
+            );
+            const tokenSupply = await getTokenSupply(
+              token.tokenAddress as Address
+            );
+
+            // Get the creator's actual token balance from the blockchain
+            let creatorTokenBalance = 0;
+            if (address) {
+              try {
+                creatorTokenBalance = await getTokenBalance(
+                  token.tokenAddress as Address,
+                  address
+                );
+                console.log(
+                  `💰 Creator balance for ${token.symbol}: ${creatorTokenBalance}`
+                );
+              } catch (balanceError) {
+                console.warn(
+                  `Could not fetch balance for ${token.symbol}:`,
+                  balanceError
+                );
+                creatorTokenBalance = 0;
+              }
+            }
+
+            // Get vote count from ZoraService if available
+            let totalVotes = Number(tokenSupply) - creatorTokenBalance; // Subtract creator's allocation
+            let isWinning = false;
+
+            if (voteStats && voteStats[token.symbol]) {
+              totalVotes = voteStats[token.symbol].totalVotes;
+              // Determine if this option is winning
+              const allVoteCounts = Object.values(voteStats).map(
+                (stat) => stat.totalVotes
+              );
+              const maxVotes = Math.max(...allVoteCounts);
+              isWinning =
+                voteStats[token.symbol].totalVotes === maxVotes && maxVotes > 0;
+            }
+
+            plotOptions.push({
+              symbol: token.symbol,
+              name: token.name,
+              tokenAddress: token.tokenAddress as Address,
+              allocatedTokens: creatorTokenBalance, // Use actual blockchain balance
+              currentValue: tokenPrice,
+              totalVotes,
+              isWinning,
+            });
+
+            console.log(
+              `✅ Token ${token.symbol}: price=${tokenPrice}, supply=${tokenSupply}, creatorBalance=${creatorTokenBalance}, votes=${totalVotes}, winning=${isWinning}`
+            );
+          } catch (error) {
+            console.error(
+              `❌ Error fetching data for token ${token.symbol}:`,
+              error
+            );
+            // Fallback to stored data
+            plotOptions.push({
+              symbol: token.symbol,
+              name: token.name,
+              tokenAddress: token.tokenAddress as Address,
+              allocatedTokens: 0, // Use 0 if we can't fetch balance
+              currentValue: 0,
+              totalVotes: 0,
+              isWinning: false,
+            });
+          }
+        }
+
+        if (plotOptions.length > 0) {
+          assets.push({
+            chapterId: chapter.id!,
+            storyTitle: story.title,
+            chapterTitle: chapter.title,
+            plotOptions,
+            voteEndTime: chapter.voteEndTime
+              ? chapter.voteEndTime.toDate()
+              : new Date(Date.now() + 24 * 60 * 60 * 1000),
+            canSell: chapter.voteEndTime
+              ? new Date() > chapter.voteEndTime.toDate()
+              : false,
+            createdAt: chapter.createdAt
+              ? chapter.createdAt.toDate()
+              : new Date(),
+          });
+
+          console.log(
+            `✅ Added asset for chapter "${chapter.title}" with ${plotOptions.length} plot options`
+          );
+        }
+      }
+
+      console.log("🎉 Final assets count:", assets.length);
+      setWriterAssets(assets);
     } catch (error) {
-      console.error("Error fetching writer assets:", error);
+      console.error("❌ Error fetching writer assets:", error);
+    }
+  };
+
+  const fetchNFTCollections = async () => {
+    try {
+      console.log("🎨 Fetching NFT collections...");
+
+      // Get user's stories and published chapters
+      const stories = await getUserStories(userId);
+      console.log(`📚 Found ${stories.length} stories for user`);
+
+      const publishedChapters: ChapterData[] = [];
+
+      for (const story of stories) {
+        const chapters = await getUserChapters(story.id!, userId);
+        console.log(
+          `📖 Story "${story.title}" has ${chapters.length} chapters`
+        );
+
+        const chaptersWithNFT = chapters.filter((ch) => {
+          const hasNFT = ch.published && ch.nftContractAddress;
+          console.log(`Chapter "${ch.title}":`, {
+            published: ch.published,
+            nftContractAddress: ch.nftContractAddress,
+            hasNFT: hasNFT ? "✅" : "❌",
+          });
+          return hasNFT;
+        });
+
+        console.log(
+          `📊 Found ${chaptersWithNFT.length} chapters with NFT contracts`
+        );
+        publishedChapters.push(...chaptersWithNFT);
+      }
+
+      console.log(
+        `🎯 Total chapters with NFT contracts: ${publishedChapters.length}`
+      );
+
+      const collections: NFTCollection[] = [];
+
+      for (const chapter of publishedChapters) {
+        if (!chapter.nftContractAddress) continue;
+
+        const story = stories.find((s) => s.id === chapter.storyId);
+        if (!story) continue;
+
+        try {
+          console.log(
+            `🔍 Fetching NFT data for chapter "${chapter.title}" at ${chapter.nftContractAddress}`
+          );
+
+          // Get real NFT data from contract
+          const nftData = await getChapterNFTData(
+            chapter.nftContractAddress as Address
+          );
+
+          if (nftData) {
+            console.log(`✅ Got NFT data:`, nftData);
+
+            collections.push({
+              chapterId: chapter.id!,
+              storyTitle: story.title,
+              chapterTitle: chapter.title,
+              contractAddress: chapter.nftContractAddress as Address,
+              name: `${story.title} - Chapter ${chapter.order}`,
+              symbol: `${story.title.slice(0, 4).toUpperCase()}${
+                chapter.order
+              }`,
+              currentEdition: nftData.currentEdition,
+              maxEditions: nftData.maxEditions,
+              mintPrice: nftData.mintPrice,
+              totalMinted: nftData.currentEdition,
+              creatorMinted: nftData.currentEdition > 0, // Creator mints first edition
+              royaltiesEarned: 0, // TODO: Calculate from secondary sales
+            });
+          } else {
+            console.log(
+              `❌ No NFT data returned for chapter "${chapter.title}"`
+            );
+          }
+        } catch (error) {
+          console.error(
+            `❌ Error fetching NFT data for chapter ${chapter.id}:`,
+            error
+          );
+        }
+      }
+
+      console.log(`🎉 Final NFT collections count: ${collections.length}`);
+      setNftCollections(collections);
+    } catch (error) {
+      console.error("❌ Error fetching NFT collections:", error);
     }
   };
 
   const fetchPurchasedTokens = async () => {
     try {
-      // TODO: Implement actual purchased tokens fetch
-      // This will get tokens the writer bought by voting on other stories
+      // TODO: Implement fetching tokens purchased by this user from other creators
+      // This would involve querying the blockchain for token purchases made by the user's address
 
-      // Mock data for now
-      const mockPurchased: PurchasedToken[] = [
-        {
-          chapterId: "other-chapter1",
-          storyTitle: "Digital Dreams",
-          chapterTitle: "Chapter 2: The Algorithm",
-          plotSymbol: "CODE",
-          plotName: "Code the Future",
-          tokenAddress: "0xdef...",
-          tokenCount: 25,
-          purchasePrice: 0.03,
-          currentValue: 0.05,
-          profitLoss: 0.02,
-          canSell: true,
-          isWinningOption: true,
-        },
-      ];
-
-      setPurchasedTokens(mockPurchased);
+      // For now, using empty array - this would be populated with real data
+      setPurchasedTokens([]);
     } catch (error) {
       console.error("Error fetching purchased tokens:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -217,6 +434,16 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
           Created Assets ({writerAssets.length})
         </button>
         <button
+          onClick={() => setActiveTab("nfts")}
+          className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            activeTab === "nfts"
+              ? "bg-white dark:bg-dark-700 text-ink-900 dark:text-white shadow-sm"
+              : "text-ink-600 dark:text-ink-400 hover:text-ink-900 dark:hover:text-white"
+          }`}
+        >
+          NFT Collections ({nftCollections.length})
+        </button>
+        <button
           onClick={() => setActiveTab("purchased")}
           className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
             activeTab === "purchased"
@@ -233,12 +460,42 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Your Created Plot Options</h3>
-            <button
-              onClick={fetchWriterAssets}
-              className="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-            >
-              Refresh
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  console.log("🔍 DEBUG: Checking user data...");
+                  const stories = await getUserStories(userId);
+                  console.log("📚 User stories:", stories);
+
+                  for (const story of stories) {
+                    const chapters = await getUserChapters(story.id!, userId);
+                    console.log(
+                      `📖 Story "${story.title}" chapters:`,
+                      chapters
+                    );
+
+                    chapters.forEach((ch) => {
+                      console.log(`Chapter "${ch.title}":`, {
+                        published: ch.published,
+                        plotTokens: ch.plotTokens,
+                        plotOptions: ch.plotOptions,
+                        hasChoicePoint: ch.hasChoicePoint,
+                        choiceOptions: ch.choiceOptions,
+                      });
+                    });
+                  }
+                }}
+                className="px-3 py-1 text-sm bg-yellow-200 dark:bg-yellow-700 rounded-lg hover:bg-yellow-300 dark:hover:bg-yellow-600 transition-colors"
+              >
+                Debug
+              </button>
+              <button
+                onClick={fetchWriterAssets}
+                className="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
 
           {writerAssets.length === 0 ? (
@@ -357,6 +614,155 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
                         )}
                       </div>
                     ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* NFT Collections Tab */}
+      {activeTab === "nfts" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Your NFT Collections</h3>
+            <button
+              onClick={fetchNFTCollections}
+              className="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+              Refresh
+            </button>
+          </div>
+
+          {nftCollections.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-600 dark:text-gray-400">
+                No NFT collections found. Create NFT collections for your
+                published chapters to give readers exclusive collectibles!
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              {nftCollections.map((collection) => (
+                <div
+                  key={collection.chapterId}
+                  className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-white text-lg">
+                        {collection.name}
+                      </h4>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        {collection.storyTitle} - {collection.chapterTitle}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                        Symbol: {collection.symbol}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                        NFT Collection
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        Editions Minted
+                      </p>
+                      <p className="font-medium text-lg">
+                        {collection.currentEdition} / {collection.maxEditions}
+                      </p>
+                      <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mt-2">
+                        <div
+                          className="bg-purple-600 h-2 rounded-full"
+                          style={{
+                            width: `${
+                              (collection.currentEdition /
+                                collection.maxEditions) *
+                              100
+                            }%`,
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        Mint Price
+                      </p>
+                      <p className="font-medium text-lg">
+                        {collection.mintPrice} ETH
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        (Creator: Free)
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        Revenue Earned
+                      </p>
+                      <p className="font-medium text-lg">
+                        {formatETH(
+                          (collection.currentEdition - 1) *
+                            parseFloat(collection.mintPrice)
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        From mints
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        Royalties
+                      </p>
+                      <p className="font-medium text-lg">
+                        {formatETH(collection.royaltiesEarned)}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        10% on resales
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          collection.creatorMinted
+                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                            : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                        }`}
+                      >
+                        {collection.creatorMinted
+                          ? "Creator Edition Minted"
+                          : "Not Minted"}
+                      </span>
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <a
+                        href={`https://sepolia.basescan.org/address/${collection.contractAddress}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        View Contract
+                      </a>
+                      <a
+                        href={`https://testnets.opensea.io/assets/base-sepolia/${collection.contractAddress}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        View on OpenSea
+                      </a>
+                    </div>
                   </div>
                 </div>
               ))}

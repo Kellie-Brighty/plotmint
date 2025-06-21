@@ -6,15 +6,6 @@ export interface PlotOption {
   metadataURI: string; // metadataURI (an IPFS URI is recommended)
 }
 
-export interface VotePayload {
-  chapterId: string;
-  plotSymbol: string;
-  tokenAddress: Address;
-  voter: Address;
-  amount: number;
-  orderSize: string;
-}
-
 export interface PlotVoteStats {
   [symbol: string]: {
     tokenAddress: Address;
@@ -29,13 +20,4 @@ export interface PlotVoteStats {
 export interface PlotWinner {
   winningSymbol: string;
   tokenAddress: Address;
-}
-
-export interface TradeabilityStatus {
-  isInitialized: boolean;
-  hasHookBalance: boolean;
-  poolExists: boolean;
-  hookAddress?: Address;
-  poolKey?: any;
-  error?: string;
 }

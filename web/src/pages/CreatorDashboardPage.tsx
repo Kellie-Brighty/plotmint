@@ -1,16 +1,25 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../utils/AuthContext";
+import { useWallet } from "../utils/useWallet";
 import WriterAssets from "../components/WriterAssets";
 import {
   subscribeToCreatorStories,
   subscribeToChapters,
   subscribeToCreatorAnalytics,
+  addPlotTokensToChapter,
+  createPlotOptionsFromChoices,
   type AnalyticsSummary,
+  type ChapterData,
+  updateChapter,
+  updateChapterWithNFT,
+  notifyFollowersOfNewChapter,
 } from "../utils/storyService";
 import type { StoryData } from "../utils/storyService";
+import { serverTimestamp, type Timestamp } from "firebase/firestore";
+import ChapterNFTCreator from "../components/ChapterNFTCreator";
 
 // Keep mock analytics data for now
 
@@ -24,6 +33,7 @@ interface DraftChapter {
   wordCount: number;
   lastEdited: string;
   choices: { id: string; text: string; votes: number }[];
+  order: number;
 }
 
 type Tab = "stories" | "analytics" | "chapters" | "assets";
@@ -38,7 +48,16 @@ const CreatorDashboardPage = () => {
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [_draftsLoading, setDraftsLoading] = useState(true);
   const { currentUser } = useAuth();
+  const { getWalletClient, getPublicClient } = useWallet();
   const navigate = useNavigate();
+  const [selectedStory, setSelectedStory] = useState<StoryData | null>(null);
+
+  const [selectedChapter, setSelectedChapter] = useState<ChapterData | null>(
+    null
+  );
+  const [showNFTCreator, setShowNFTCreator] = useState(false);
+  const [_isSaving, setIsSaving] = useState(false);
+  const [_publishError, setPublishError] = useState<string | null>(null);
 
   // Subscribe to real-time stories data
   useEffect(() => {
@@ -136,6 +155,7 @@ const CreatorDashboardPage = () => {
                         votes: 0,
                       }))
                     : [],
+                  order: chapter.order,
                 }));
 
               // Remove any existing drafts for this story and add the new ones
@@ -370,12 +390,16 @@ const CreatorDashboardPage = () => {
                         >
                           View
                         </Link>
-                        <Link
-                          to={`/creator/new-chapter?storyId=${story.id}`}
-                          className="flex-1 text-center py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors"
+                        <button
+                          onClick={() =>
+                            navigate("/creator/new-chapter", {
+                              state: { storyData: story },
+                            })
+                          }
+                          className="flex-1 py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors"
                         >
                           Add Chapter
-                        </Link>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -750,12 +774,30 @@ const CreatorDashboardPage = () => {
                               {draft.wordCount}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <Link
-                                to={`/creator/edit-chapter/${draft.id}`}
-                                className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300"
-                              >
-                                Edit
-                              </Link>
+                              <div className="flex items-center space-x-3 justify-end">
+                                <Link
+                                  to={`/creator/edit-chapter/${draft.id}`}
+                                  className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300"
+                                >
+                                  Edit
+                                </Link>
+                                {draft.status === "ready" && (
+                                  <button
+                                    onClick={() =>
+                                      handlePublishChapter(
+                                        draft.storyId,
+                                        draft.id!,
+                                        draft.storyTitle,
+                                        draft.title,
+                                        draft.order
+                                      )
+                                    }
+                                    className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 font-medium"
+                                  >
+                                    Publish
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -809,12 +851,30 @@ const CreatorDashboardPage = () => {
                           </div>
                         </div>
 
-                        <Link
-                          to={`/creator/edit-chapter/${draft.id}`}
-                          className="block w-full text-center py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors"
-                        >
-                          Edit Chapter
-                        </Link>
+                        <div className="flex space-x-2">
+                          <Link
+                            to={`/creator/edit-chapter/${draft.id}`}
+                            className="flex-1 text-center py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors"
+                          >
+                            Edit
+                          </Link>
+                          {draft.status === "ready" && (
+                            <button
+                              onClick={() =>
+                                handlePublishChapter(
+                                  draft.storyId,
+                                  draft.id!,
+                                  draft.storyTitle,
+                                  draft.title,
+                                  draft.order
+                                )
+                              }
+                              className="flex-1 py-2 px-3 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors"
+                            >
+                              Publish
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -832,6 +892,179 @@ const CreatorDashboardPage = () => {
     }
   };
 
+  const handlePublishChapter = async (
+    storyId: string,
+    chapterId: string,
+    _storyTitle: string,
+    chapterTitle: string,
+    chapterOrder: number
+  ) => {
+    try {
+      setIsSaving(true);
+      setPublishError(null);
+
+      // Find the story and chapter data
+      const story = stories.find((s) => s.id === storyId);
+      const chapterData = drafts.find((d) => d.id === chapterId);
+
+      if (!story || !chapterData) {
+        throw new Error("Story or chapter not found");
+      }
+
+      if (!chapterData.choices || chapterData.choices.length !== 2) {
+        throw new Error(
+          "Chapter must have exactly two plot options for publication"
+        );
+      }
+
+      // Generate plot options with metadata
+      const filledOptions = chapterData.choices
+        .map((choice) => choice.text)
+        .filter((option) => option.trim().length > 0);
+
+      if (filledOptions.length !== 2) {
+        throw new Error("Exactly two plot options are required");
+      }
+
+      const plotOptions = await createPlotOptionsFromChoices(
+        filledOptions,
+        story.title,
+        chapterTitle
+      );
+
+      // Get wallet clients for token creation
+      const walletClient = getWalletClient();
+      const publicClient = getPublicClient();
+
+      if (!walletClient || !publicClient) {
+        throw new Error("Please connect your wallet to create plot tokens");
+      }
+
+      console.log("🚀 Publishing chapter with plot tokens...");
+
+      // Add plot tokens to the existing chapter
+      await addPlotTokensToChapter(
+        chapterId,
+        plotOptions,
+        walletClient,
+        publicClient
+      );
+
+      // Now publish the chapter
+      await updateChapter(chapterId, {
+        published: true,
+        updatedAt: serverTimestamp() as Timestamp,
+      });
+
+      // Notify followers
+      await notifyFollowersOfNewChapter(storyId, chapterId);
+
+      console.log("✅ Chapter published with plot tokens");
+
+      // Now show NFT creation modal as optional next step
+      const chapter: ChapterData = {
+        id: chapterId,
+        storyId,
+        title: chapterTitle,
+        order: chapterOrder,
+        published: true,
+        hasChoicePoint: true,
+        content: "", // Will be loaded when needed
+        creatorId: currentUser?.uid || "",
+      };
+
+      setSelectedStory(story);
+      setSelectedChapter(chapter);
+      setShowNFTCreator(true);
+      setIsSaving(false);
+    } catch (error) {
+      console.error("Error publishing chapter:", error);
+      setPublishError(
+        `Failed to publish chapter: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      setIsSaving(false);
+    }
+  };
+
+  const handleNFTCreated = async (nftContractAddress: string) => {
+    if (!selectedChapter || !selectedStory) return;
+
+    try {
+      setIsSaving(true);
+      setPublishError(null);
+
+      console.log(
+        "✅ NFT Collection created successfully:",
+        nftContractAddress
+      );
+
+      // Update the already-published chapter with NFT contract address using the new utility function
+      await updateChapterWithNFT(selectedChapter.id!, nftContractAddress);
+
+      console.log("📝 Chapter updated with NFT contract address");
+      setIsSaving(false);
+    } catch (error) {
+      console.error("Error updating chapter with NFT:", error);
+      setPublishError(
+        `Failed to update chapter with NFT: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      setIsSaving(false);
+    }
+  };
+
+  // const handleNextStep = (step: "tokens" | "publish" | "draft") => {
+  //   // Chapter is already published with tokens, just navigate appropriately
+  //   setShowNFTCreator(false);
+  //   setSelectedChapter(null);
+  //   setSelectedStory(null);
+
+  //   switch (step) {
+  //     case "tokens":
+  //       // Navigate to token assets view
+  //       setActiveTab("assets");
+  //       break;
+  //     case "publish":
+  //     case "draft":
+  //     default:
+  //       // Stay on current tab (chapters)
+  //       setActiveTab("chapters");
+  //       break;
+  //   }
+  // };
+
+  const handleSkipNFT = async () => {
+    // Chapter is already published, just close the modal
+    setShowNFTCreator(false);
+    setSelectedChapter(null);
+    setSelectedStory(null);
+    console.log("NFT creation skipped - chapter already published");
+  };
+
+  // const handleRepairStoryData = async () => {
+  //   if (!currentUser) return;
+
+  //   setIsRepairing(true);
+  //   setError(null);
+
+  //   try {
+  //     await fixStoryDataInconsistencies(currentUser.uid);
+  //     console.log("✅ Story data repair completed successfully");
+  //   } catch (error) {
+  //     console.error("❌ Story data repair failed:", error);
+  //     setError(
+  //       `Failed to repair story data: ${
+  //         error instanceof Error ? error.message : "Unknown error"
+  //       }`
+  //     );
+  //   } finally {
+  //     setIsRepairing(false);
+  //   }
+  // };
+
   return (
     <div className="min-h-screen bg-parchment-50 dark:bg-dark-950 pt-24 pb-16">
       <div className="content-wrapper px-4 sm:px-6 lg:px-8 max-w-full sm:max-w-screen-xl mx-auto">
@@ -842,12 +1075,16 @@ const CreatorDashboardPage = () => {
           transition={{ duration: 0.5 }}
           className="mb-8"
         >
-          <h1 className="text-2xl md:text-3xl font-display font-bold text-ink-900 dark:text-white mb-2">
-            Creator Dashboard
-          </h1>
-          <p className="text-ink-600 dark:text-ink-300">
-            Manage your stories, track performance, and create new content
-          </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-display font-bold text-ink-900 dark:text-white mb-2">
+                Creator Dashboard
+              </h1>
+              <p className="text-ink-600 dark:text-ink-300">
+                Manage your stories, track performance, and create new content
+              </p>
+            </div>
+          </div>
         </motion.div>
 
         {/* Tabs */}
@@ -917,6 +1154,95 @@ const CreatorDashboardPage = () => {
         >
           {renderTabContent()}
         </motion.div>
+
+        {/* NFT Creator Modal */}
+        <AnimatePresence>
+          {showNFTCreator && selectedChapter && selectedStory && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-white dark:bg-dark-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-display font-bold text-ink-900 dark:text-white">
+                      Create NFT Collection (Optional)
+                    </h2>
+                    <button
+                      onClick={() => setShowNFTCreator(false)}
+                      className="text-ink-400 hover:text-ink-600 dark:text-ink-500 dark:hover:text-ink-300"
+                    >
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="mb-6 p-4 bg-parchment-50 dark:bg-dark-800 rounded-lg">
+                    <h3 className="font-semibold text-ink-900 dark:text-white mb-2">
+                      {selectedStory.title} - {selectedChapter.title}
+                    </h3>
+                    <p className="text-ink-600 dark:text-ink-400 text-sm">
+                      Your chapter is now published with plot tokens! Optionally
+                      create a limited edition NFT collection to give your
+                      readers exclusive collectibles.
+                    </p>
+                  </div>
+
+                  <ChapterNFTCreator
+                    chapterId={selectedChapter.id!}
+                    storyTitle={selectedStory.title}
+                    chapterTitle={selectedChapter.title}
+                    chapterNumber={selectedChapter.order}
+                    onNFTCreated={handleNFTCreated}
+                    onFirstEditionMinted={() => {
+                      // NFT creation flow completed
+                      console.log("First edition minted successfully");
+                    }}
+                  />
+
+                  <div className="mt-6 pt-6 border-t border-parchment-200 dark:border-dark-700">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={handleSkipNFT}
+                        className="flex-1 py-3 px-4 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors"
+                      >
+                        Skip NFT & Publish Now
+                      </button>
+                      <button
+                        onClick={() => setShowNFTCreator(false)}
+                        className="flex-1 py-3 px-4 border border-gray-300 dark:border-gray-600 text-ink-700 dark:text-ink-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <p className="text-xs text-ink-500 dark:text-ink-400 mt-2 text-center">
+                      You can always create NFT collections for published
+                      chapters later
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

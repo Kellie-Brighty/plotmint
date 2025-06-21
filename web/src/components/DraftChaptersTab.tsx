@@ -8,6 +8,13 @@ import {
 
 interface DraftChaptersTabProps {
   userId: string;
+  onPublishChapter?: (
+    storyId: string,
+    chapterId: string,
+    storyTitle: string,
+    chapterTitle: string,
+    chapterOrder: number
+  ) => void;
 }
 
 interface DraftChapter {
@@ -20,9 +27,13 @@ interface DraftChapter {
   wordCount: number;
   lastEdited: string;
   choices: { id: string; text: string; votes: number }[];
+  order: number;
 }
 
-const DraftChaptersTab = ({ userId }: DraftChaptersTabProps) => {
+const DraftChaptersTab = ({
+  userId,
+  onPublishChapter,
+}: DraftChaptersTabProps) => {
   const [drafts, setDrafts] = useState<DraftChapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, _setError] = useState<string | null>(null);
@@ -82,6 +93,7 @@ const DraftChaptersTab = ({ userId }: DraftChaptersTabProps) => {
                         votes: 0,
                       }))
                     : [],
+                  order: chapter.order,
                 }));
 
               // Remove any existing drafts for this story and add the new ones
@@ -258,12 +270,30 @@ const DraftChaptersTab = ({ userId }: DraftChaptersTabProps) => {
                       {draft.wordCount}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center space-x-3 justify-end">
                       <Link
                         to={`/creator/edit-chapter/${draft.id}`}
                         className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300"
                       >
                         Edit
                       </Link>
+                        {draft.status === "ready" && onPublishChapter && (
+                          <button
+                            onClick={() =>
+                              onPublishChapter(
+                                draft.storyId,
+                                draft.id!,
+                                draft.storyTitle,
+                                draft.title,
+                                draft.order
+                              )
+                            }
+                            className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 font-medium"
+                          >
+                            Publish
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

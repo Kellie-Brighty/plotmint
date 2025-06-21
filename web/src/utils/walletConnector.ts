@@ -34,12 +34,19 @@ class WalletConnector {
 
     // Listen for account changes
     if (typeof window !== "undefined" && window.ethereum) {
+      console.log(
+        "Ethereum provider detected:",
+        window.ethereum.isMetaMask ? "MetaMask" : "Unknown"
+      );
+
       window.ethereum.on(
         "accountsChanged",
         this.handleAccountsChanged.bind(this)
       );
       window.ethereum.on("chainChanged", this.handleChainChanged.bind(this));
       window.ethereum.on("disconnect", this.handleDisconnect.bind(this));
+    } else {
+      console.log("No Ethereum provider detected");
     }
   }
 
@@ -86,16 +93,38 @@ class WalletConnector {
   }
 
   public async connect(): Promise<void> {
+    // Check if Ethereum provider is available
+    if (typeof window === "undefined") {
+      throw new Error("Window is not available");
+    }
+
+    console.log("🔍 Checking wallet availability:", {
+      windowExists: typeof window !== "undefined",
+      ethereumExists: !!window.ethereum,
+      ethereumType: window.ethereum ? typeof window.ethereum : "undefined",
+      isMetaMask: window.ethereum?.isMetaMask,
+      isCoinbaseWallet: window.ethereum?.isCoinbaseWallet,
+      providers: window.ethereum?.providers
+        ? window.ethereum.providers.length
+        : 0,
+    });
+
     if (!window.ethereum) {
-      throw new Error("MetaMask is not installed");
+      throw new Error(
+        "No Ethereum wallet detected. Please install MetaMask, Coinbase Wallet, or another Web3 wallet."
+      );
     }
 
     this.updateState({ isConnecting: true });
 
     try {
+      console.log("🚀 Requesting wallet connection...");
+
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
       });
+
+      console.log("✅ Accounts received:", accounts);
 
       if (accounts.length === 0) {
         throw new Error("No accounts found");
@@ -112,13 +141,19 @@ class WalletConnector {
         method: "eth_chainId",
       });
 
+      console.log("Wallet connected successfully:", {
+        address: accounts[0],
+        chainId: parseInt(chainId, 16),
+      });
+
       this.updateState({
         isConnected: true,
         address: accounts[0] as Address,
         chainId: parseInt(chainId, 16),
         isConnecting: false,
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Wallet connection failed:", error);
       this.updateState({ isConnecting: false });
       throw error;
     }

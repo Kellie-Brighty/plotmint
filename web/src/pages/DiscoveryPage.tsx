@@ -18,7 +18,6 @@ const CATEGORIES = [
   { id: "crime", name: "Crime", count: 31 },
 ];
 
-
 // Mock data for popular tags
 const POPULAR_TAGS = [
   { id: "adventure", name: "Adventure", count: 238 },
@@ -67,6 +66,8 @@ const DiscoveryPage = () => {
     setLoading(true);
     setError(null);
 
+    console.log("🔍 DiscoveryPage: Setting up story subscription...");
+
     // Convert UI filters to service filter format
     const filter: StoriesFilter = {
       published: true,
@@ -97,15 +98,35 @@ const DiscoveryPage = () => {
     if (selectedCategories.length === 1) {
       // We can only filter by one genre in Firebase query
       filter.genre = selectedCategories[0];
+      console.log("📂 DiscoveryPage genre filter:", selectedCategories[0]);
     }
 
     // Add tags to filter
     if (selectedTags.length > 0) {
       filter.tags = selectedTags;
+      console.log("🏷️ DiscoveryPage tag filter:", selectedTags);
     }
+
+    console.log("🔧 DiscoveryPage filter:", filter);
+    console.log("🔍 DiscoveryPage search query:", searchQuery);
 
     // Subscribe to real-time updates
     const unsubscribe = subscribeToStories((fetchedStories: StoryData[]) => {
+      console.log(
+        "📚 DiscoveryPage received stories from subscription:",
+        fetchedStories.length
+      );
+      console.log(
+        "📋 Raw stories data:",
+        fetchedStories.map((s) => ({
+          id: s.id,
+          title: s.title,
+          published: s.published,
+          chapterCount: s.chapterCount,
+          createdAt: s.createdAt,
+        }))
+      );
+
       // Filter stories by search query if provided
       let filteredStories = fetchedStories;
 
@@ -119,10 +140,13 @@ const DiscoveryPage = () => {
             (story.genre && story.genre.toLowerCase().includes(query)) ||
             story.tags.some((tag: string) => tag.toLowerCase().includes(query))
         );
+        console.log("🔍 After search filtering:", filteredStories.length);
       }
 
       // Map to UI format
       const mappedStories = filteredStories.map(storyToCardFormat);
+      console.log("📱 Final mapped stories for UI:", mappedStories.length);
+
       setStories(mappedStories);
       setLoading(false);
     }, filter);
