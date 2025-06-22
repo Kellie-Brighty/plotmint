@@ -145,12 +145,84 @@ export const CHAPTER_NFT_ABI = [
     inputs: [{ name: "tokenId", type: "uint256" }],
     outputs: [{ name: "", type: "address" }],
   },
+  // Marketplace functions
+  {
+    type: "function",
+    name: "listForSale",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenId", type: "uint256" },
+      { name: "price", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "cancelListing",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "buyListed",
+    stateMutability: "payable",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "listings",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [
+      { name: "seller", type: "address" },
+      { name: "price", type: "uint256" },
+      { name: "active", type: "bool" },
+    ],
+  },
+  {
+    type: "function",
+    name: "royaltyInfo",
+    stateMutability: "view",
+    inputs: [
+      { name: "tokenId", type: "uint256" },
+      { name: "salePrice", type: "uint256" },
+    ],
+    outputs: [
+      { name: "receiver", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+  },
   {
     type: "event",
     name: "EditionMinted",
     inputs: [
       { name: "tokenId", type: "uint256", indexed: true },
       { name: "minter", type: "address", indexed: true },
+    ],
+  },
+  {
+    type: "event",
+    name: "ListingCreated",
+    inputs: [
+      { name: "tokenId", type: "uint256", indexed: true },
+      { name: "price", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "ListingCancelled",
+    inputs: [{ name: "tokenId", type: "uint256", indexed: true }],
+  },
+  {
+    type: "event",
+    name: "ListingSold",
+    inputs: [
+      { name: "tokenId", type: "uint256", indexed: true },
+      { name: "seller", type: "address", indexed: false },
+      { name: "buyer", type: "address", indexed: false },
+      { name: "price", type: "uint256", indexed: false },
     ],
   },
   {

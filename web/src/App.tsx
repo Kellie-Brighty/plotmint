@@ -18,6 +18,7 @@ import CreatorDashboardPage from "./pages/CreatorDashboardPage";
 import NewStoryPage from "./pages/CreateStoryPage";
 import ChapterEditorPage from "./pages/ChapterEditorPage";
 import DiscoverPage from "./pages/DiscoveryPage";
+import MarketplacePage from "./pages/MarketplacePage";
 import PlotVoting from "./components/PlotVoting";
 
 // Wrapper component for PlotVoting to extract URL params
@@ -133,6 +134,7 @@ function App() {
 
               {/* Public routes */}
               <Route path="/discover" element={<DiscoverPage />} />
+              <Route path="/marketplace" element={<MarketplacePage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

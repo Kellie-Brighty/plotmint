@@ -492,6 +492,244 @@ export function useChapterNFT() {
     }
   };
 
+  // List NFT for sale on marketplace
+  const listNFTForSale = async (
+    nftContractAddress: Address,
+    tokenId: number,
+    priceInETH: string
+  ) => {
+    try {
+      if (!isConnected || !address) {
+        throw new Error("Wallet not connected");
+      }
+
+      const walletClient = getWalletClient();
+      const publicClient = getPublicClient();
+
+      if (!walletClient || !publicClient) {
+        throw new Error("Wallet client not available");
+      }
+
+      setError(null);
+
+      // Convert ETH price to wei
+      const priceInWei = BigInt(Math.floor(parseFloat(priceInETH) * 1e18));
+
+      console.log("🏷️ Listing NFT for sale:", {
+        contract: nftContractAddress,
+        tokenId,
+        priceETH: priceInETH,
+        priceWei: priceInWei.toString(),
+        seller: address,
+      });
+
+      // Call listForSale on the ChapterNFT contract
+      const hash = await walletClient.writeContract({
+        address: nftContractAddress,
+        abi: CHAPTER_NFT_ABI,
+        functionName: "listForSale",
+        args: [BigInt(tokenId), priceInWei],
+        chain: baseSepolia,
+        account: address,
+      });
+
+      console.log("📝 NFT listing transaction submitted:", hash);
+
+      // Wait for transaction confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash,
+      });
+
+      console.log("✅ NFT listed successfully:", receipt);
+      return { hash, receipt };
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to list NFT";
+      console.error("❌ Error listing NFT:", err);
+      setError(errorMessage);
+      throw err;
+    }
+  };
+
+  // Cancel NFT listing
+  const cancelNFTListing = async (
+    nftContractAddress: Address,
+    tokenId: number
+  ) => {
+    try {
+      if (!isConnected || !address) {
+        throw new Error("Wallet not connected");
+      }
+
+      const walletClient = getWalletClient();
+      const publicClient = getPublicClient();
+
+      if (!walletClient || !publicClient) {
+        throw new Error("Wallet client not available");
+      }
+
+      setError(null);
+
+      console.log("❌ Cancelling NFT listing:", {
+        contract: nftContractAddress,
+        tokenId,
+        seller: address,
+      });
+
+      // Call cancelListing on the ChapterNFT contract
+      const hash = await walletClient.writeContract({
+        address: nftContractAddress,
+        abi: CHAPTER_NFT_ABI,
+        functionName: "cancelListing",
+        args: [BigInt(tokenId)],
+        chain: baseSepolia,
+        account: address,
+      });
+
+      console.log("📝 Listing cancellation transaction submitted:", hash);
+
+      // Wait for transaction confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash,
+      });
+
+      console.log("✅ Listing cancelled successfully:", receipt);
+      return { hash, receipt };
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to cancel listing";
+      console.error("❌ Error cancelling listing:", err);
+      setError(errorMessage);
+      throw err;
+    }
+  };
+
+  // Buy listed NFT
+  const buyListedNFT = async (nftContractAddress: Address, tokenId: number) => {
+    try {
+      if (!isConnected || !address) {
+        throw new Error("Wallet not connected");
+      }
+
+      const walletClient = getWalletClient();
+      const publicClient = getPublicClient();
+
+      if (!walletClient || !publicClient) {
+        throw new Error("Wallet client not available");
+      }
+
+      setError(null);
+
+      // Get listing information first
+      const listing = await getNFTListing(nftContractAddress, tokenId);
+      if (!listing || !listing.active) {
+        throw new Error("NFT is not listed for sale");
+      }
+
+      console.log("💰 Buying listed NFT:", {
+        contract: nftContractAddress,
+        tokenId,
+        price: listing.price,
+        buyer: address,
+        seller: listing.seller,
+      });
+
+      // Call buyListed on the ChapterNFT contract
+      const hash = await walletClient.writeContract({
+        address: nftContractAddress,
+        abi: CHAPTER_NFT_ABI,
+        functionName: "buyListed",
+        args: [BigInt(tokenId)],
+        value: BigInt(listing.price),
+        chain: baseSepolia,
+        account: address,
+      });
+
+      console.log("📝 NFT purchase transaction submitted:", hash);
+
+      // Wait for transaction confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash,
+      });
+
+      console.log("✅ NFT purchased successfully:", receipt);
+      return { hash, receipt };
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to buy NFT";
+      console.error("❌ Error buying NFT:", err);
+      setError(errorMessage);
+      throw err;
+    }
+  };
+
+  // Get NFT listing information
+  const getNFTListing = async (
+    nftContractAddress: Address,
+    tokenId: number
+  ): Promise<{
+    seller: Address;
+    price: string;
+    active: boolean;
+  } | null> => {
+    try {
+      const publicClient = getPublicClient();
+      if (!publicClient) return null;
+
+      const listing = await publicClient.readContract({
+        address: nftContractAddress,
+        abi: CHAPTER_NFT_ABI,
+        functionName: "listings",
+        args: [BigInt(tokenId)],
+      });
+
+      const [seller, price, active] = listing as [Address, bigint, boolean];
+
+      return {
+        seller,
+        price: price.toString(),
+        active,
+      };
+    } catch (err) {
+      console.error("Error getting NFT listing:", err);
+      return null;
+    }
+  };
+
+  // Get royalty information
+  const getRoyaltyInfo = async (
+    nftContractAddress: Address,
+    tokenId: number,
+    salePrice: string
+  ): Promise<{
+    receiver: Address;
+    amount: string;
+  } | null> => {
+    try {
+      const publicClient = getPublicClient();
+      if (!publicClient) return null;
+
+      const salePriceWei = BigInt(Math.floor(parseFloat(salePrice) * 1e18));
+
+      const royaltyInfo = await publicClient.readContract({
+        address: nftContractAddress,
+        abi: CHAPTER_NFT_ABI,
+        functionName: "royaltyInfo",
+        args: [BigInt(tokenId), salePriceWei],
+      });
+
+      const [receiver, amount] = royaltyInfo as [Address, bigint];
+
+      return {
+        receiver,
+        amount: amount.toString(),
+      };
+    } catch (err) {
+      console.error("Error getting royalty info:", err);
+      return null;
+    }
+  };
+
   return {
     // Creation functions
     createChapterNFT,
@@ -515,8 +753,15 @@ export function useChapterNFT() {
     clearError: () => setError(null),
     isLoading: isCreating || isMinting,
 
-    // New functions
+    // Phase 1 functions (P2P transfers)
     transferNFT,
     canTransferNFT,
+
+    // Phase 2 functions (Marketplace)
+    listNFTForSale,
+    cancelNFTListing,
+    buyListedNFT,
+    getNFTListing,
+    getRoyaltyInfo,
   };
 }

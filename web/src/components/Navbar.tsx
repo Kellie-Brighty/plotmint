@@ -72,6 +72,12 @@ const Navbar = () => {
                 Explore Stories
               </Link>
               <Link
+                to="/marketplace"
+                className="px-3 py-2 text-sm font-medium text-ink-600 dark:text-ink-300 hover:text-ink-900 dark:hover:text-white"
+              >
+                NFT Marketplace
+              </Link>
+              <Link
                 to="/discover"
                 className="px-3 py-2 text-sm font-medium text-ink-600 dark:text-ink-300 hover:text-ink-900 dark:hover:text-white"
               >
@@ -215,6 +221,12 @@ const Navbar = () => {
               Explore Stories
             </Link>
             <Link
+              to="/marketplace"
+              className="block px-3 py-2 rounded-md text-base font-medium text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
+            >
+              NFT Marketplace
+            </Link>
+            <Link
               to="/discover"
               className="block px-3 py-2 rounded-md text-base font-medium text-ink-700 dark:text-ink-200 hover:bg-parchment-100 dark:hover:bg-dark-800"
             >
@@ -234,18 +246,25 @@ const Navbar = () => {
                     Creator Studio
                   </Button>
                 </Link>
+                <div className="mb-2">
+                  <WalletConnect className="w-full" />
+                </div>
                 <Button variant="primary" fullWidth onClick={handleSignOut}>
                   Sign Out
                 </Button>
               </>
             ) : (
-              <Button
-                variant="primary"
-                fullWidth
-                onClick={() => setShowAuthModal(true)}
-              >
-                Join PlotMint
-              </Button>
+              <>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  className="mb-2"
+                  onClick={() => setShowAuthModal(true)}
+                >
+                  Join PlotMint
+                </Button>
+                <WalletConnect className="w-full" />
+              </>
             )}
           </div>
         </div>

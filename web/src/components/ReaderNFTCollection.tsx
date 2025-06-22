@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useWallet } from "../utils/useWallet";
 import { useChapterNFT } from "../utils/useChapterNFT";
 import NFTTransferModal from "./NFTTransferModal";
+import NFTMarketplaceModal from "./NFTMarketplaceModal";
 import {
   collection,
   query,
@@ -42,6 +43,11 @@ export const ReaderNFTCollection: React.FC<ReaderNFTCollectionProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [transferModal, setTransferModal] = useState<{
+    isOpen: boolean;
+    nft: NFTCollectionItem | null;
+  }>({ isOpen: false, nft: null });
+
+  const [marketplaceModal, setMarketplaceModal] = useState<{
     isOpen: boolean;
     nft: NFTCollectionItem | null;
   }>({ isOpen: false, nft: null });
@@ -476,26 +482,48 @@ export const ReaderNFTCollection: React.FC<ReaderNFTCollectionProps> = ({
                 </a>
               </div>
 
-              {/* Transfer Button */}
-              <button
-                onClick={() => setTransferModal({ isOpen: true, nft })}
-                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-ink-700 dark:text-ink-300 text-sm font-medium rounded-lg transition-colors flex items-center justify-center"
-              >
-                <svg
-                  className="w-4 h-4 mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              {/* Action Buttons */}
+              <div className="space-y-2">
+                <button
+                  onClick={() => setMarketplaceModal({ isOpen: true, nft })}
+                  className="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                  />
-                </svg>
-                Transfer NFT
-              </button>
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5-6M20 13v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6"
+                    />
+                  </svg>
+                  Marketplace
+                </button>
+
+                <button
+                  onClick={() => setTransferModal({ isOpen: true, nft })}
+                  className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-ink-700 dark:text-ink-300 text-sm font-medium rounded-lg transition-colors flex items-center justify-center"
+                >
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                    />
+                  </svg>
+                  Transfer NFT
+                </button>
+              </div>
             </div>
           </motion.div>
         ))}
@@ -544,6 +572,21 @@ export const ReaderNFTCollection: React.FC<ReaderNFTCollectionProps> = ({
             fetchUserNFTCollection();
             setTransferModal({ isOpen: false, nft: null });
           }}
+        />
+      )}
+
+      {/* NFT Marketplace Modal */}
+      {marketplaceModal.nft && (
+        <NFTMarketplaceModal
+          isOpen={marketplaceModal.isOpen}
+          onClose={() => setMarketplaceModal({ isOpen: false, nft: null })}
+          nftContractAddress={marketplaceModal.nft.contractAddress}
+          tokenId={marketplaceModal.nft.tokenId || 1}
+          storyTitle={marketplaceModal.nft.storyTitle}
+          chapterTitle={marketplaceModal.nft.chapterTitle}
+          editionNumber={marketplaceModal.nft.editionNumber || 1}
+          currentOwner={address as Address}
+          userAddress={address || undefined}
         />
       )}
     </div>
