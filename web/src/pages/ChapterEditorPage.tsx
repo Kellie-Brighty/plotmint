@@ -364,27 +364,12 @@ const ChapterEditorPage = () => {
 
       console.log("✅ Chapter published with plot tokens");
 
-      // Debug NFT modal state
-      console.log("🎯 NFT Modal Debug:", {
-        storyData: !!storyData,
-        storyTitle: storyData?.title,
-        publishedChapterId,
-        chapterTitle: chapterData.title,
-      });
-
       // Hide progress modal and show success state
       setShowPublishingProgress(false);
       setChapterPublished(true);
       setPendingChapterId(publishedChapterId);
       setShowNFTCreator(true);
       setIsSaving(false);
-
-      // Additional debug log after setting states
-      console.log("🎯 NFT Modal States Set:", {
-        chapterPublished: true,
-        pendingChapterId: publishedChapterId,
-        showNFTCreator: true,
-      });
     } catch (error) {
       console.error("Error publishing chapter:", error);
 
@@ -414,17 +399,15 @@ const ChapterEditorPage = () => {
 
     // Save the NFT contract address to the chapter immediately
     if (pendingChapterId) {
-      console.log("💾 Saving NFT address to chapter:", pendingChapterId);
-      updateChapterWithNFT(pendingChapterId, nftContractAddress)
-        .then(() => console.log("✅ NFT address saved to chapter"))
-        .catch((err) => console.error("❌ Failed to save NFT address:", err));
+      updateChapterWithNFT(pendingChapterId, nftContractAddress).catch((err) =>
+        console.error("Failed to save NFT address:", err)
+      );
     }
 
     // Modal stays open for first edition minting
   };
 
   const handleFirstEditionMinted = () => {
-    console.log("🥇 First edition minted successfully");
     // Now close the modal after first edition is minted
     setShowNFTCreator(false);
     setPendingChapterId(null);
@@ -463,17 +446,6 @@ const ChapterEditorPage = () => {
   const handleChapterUpdate = (updatedChapter: ChapterData) => {
     setChapterData(updatedChapter);
   };
-
-  // Debug NFT modal state changes
-  useEffect(() => {
-    console.log("🎯 NFT Modal State Changed:", {
-      showNFTCreator,
-      pendingChapterId,
-      storyData: !!storyData,
-      storyTitle: storyData?.title,
-      chapterPublished,
-    });
-  }, [showNFTCreator, pendingChapterId, storyData, chapterPublished]);
 
   // Initialize publishing steps
   const initializePublishingSteps = (plotOptions: string[]) => {
@@ -592,20 +564,6 @@ const ChapterEditorPage = () => {
           {(() => {
             const shouldShowModal =
               showNFTCreator && pendingChapterId && storyData;
-
-            // Debug logging for NFT modal visibility
-            if (showNFTCreator || pendingChapterId) {
-              console.log("🎯 NFT Modal Visibility Check:", {
-                showNFTCreator,
-                pendingChapterId: !!pendingChapterId,
-                pendingChapterIdValue: pendingChapterId,
-                storyData: !!storyData,
-                storyDataId: storyData?.id,
-                storyDataTitle: storyData?.title,
-                shouldShowModal,
-                chapterPublished,
-              });
-            }
 
             return shouldShowModal;
           })() && (

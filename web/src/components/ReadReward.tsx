@@ -104,13 +104,13 @@ const ReadReward: React.FC<ReadRewardProps> = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700 overflow-hidden"
+      className="bg-white dark:bg-dark-900 rounded-lg shadow-sm border border-parchment-200 dark:border-dark-700 overflow-hidden"
     >
-      <div className="p-6">
-        <h3 className="text-xl font-display font-bold text-ink-900 dark:text-white mb-4 flex items-center">
+      <div className="p-4">
+        <h3 className="text-lg font-display font-bold text-ink-900 dark:text-white mb-3 flex items-center">
           <span>Earn PLOT Tokens</span>
           <svg
-            className="ml-2 h-5 w-5 text-amber-500"
+            className="ml-2 h-4 w-4 text-amber-500"
             viewBox="0 0 24 24"
             fill="currentColor"
             xmlns="http://www.w3.org/2000/svg"
@@ -120,11 +120,11 @@ const ReadReward: React.FC<ReadRewardProps> = ({
         </h3>
 
         {claimError && (
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 rounded-md mb-4 border border-red-200 dark:border-red-900/30">
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 rounded-md mb-3 border border-red-200 dark:border-red-900/30">
             <div className="flex items-start">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0"
+                className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0"
                 viewBox="0 0 20 20"
                 fill="currentColor"
               >
@@ -134,7 +134,7 @@ const ReadReward: React.FC<ReadRewardProps> = ({
                   clipRule="evenodd"
                 />
               </svg>
-              <p>{claimError}</p>
+              <p className="text-sm">{claimError}</p>
             </div>
           </div>
         )}
@@ -144,12 +144,12 @@ const ReadReward: React.FC<ReadRewardProps> = ({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="p-4 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 rounded-md mb-4 border border-green-200 dark:border-green-900/30"
+            className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 rounded-md mb-3 border border-green-200 dark:border-green-900/30"
           >
             <div className="flex items-start">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0"
+                className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0"
                 viewBox="0 0 20 20"
                 fill="currentColor"
               >
@@ -159,19 +159,19 @@ const ReadReward: React.FC<ReadRewardProps> = ({
                   clipRule="evenodd"
                 />
               </svg>
-              <p>You successfully claimed 5 PLOT tokens!</p>
+              <p className="text-sm">You successfully claimed 5 PLOT tokens!</p>
             </div>
           </motion.div>
         )}
 
-        <p className="text-ink-600 dark:text-ink-400 mb-4">
+        <p className="text-sm text-ink-600 dark:text-ink-400 mb-3">
           {readTimeReached
             ? "You've completed the required reading time! Claim your PLOT tokens as a reward."
             : "Continue reading to earn PLOT tokens as a reward."}
         </p>
 
-        <div className="mb-4 bg-parchment-100 dark:bg-dark-800 rounded-md p-3">
-          <div className="flex justify-between text-sm mb-1">
+        <div className="mb-3 bg-parchment-100 dark:bg-dark-800 rounded-md p-2">
+          <div className="flex justify-between text-xs mb-1">
             <span className="text-ink-700 dark:text-ink-300">
               Read Time Progress:
             </span>
@@ -179,15 +179,15 @@ const ReadReward: React.FC<ReadRewardProps> = ({
               {formatTime(Math.min(readTime, requiredReadTime))} /{" "}
               {formatTime(requiredReadTime)}
               {readTimeReached && (
-                <span className="ml-2 text-green-600 dark:text-green-400">
-                  ✓ Complete
+                <span className="ml-1 text-green-600 dark:text-green-400">
+                  ✓
                 </span>
               )}
             </span>
           </div>
-          <div className="w-full bg-parchment-200 dark:bg-dark-700 rounded-full h-2.5">
+          <div className="w-full bg-parchment-200 dark:bg-dark-700 rounded-full h-1.5">
             <div
-              className={`h-2.5 rounded-full transition-all duration-300 ${
+              className={`h-1.5 rounded-full transition-all duration-300 ${
                 readTimeReached ? "bg-green-500" : "bg-primary-500"
               }`}
               style={{
@@ -201,6 +201,7 @@ const ReadReward: React.FC<ReadRewardProps> = ({
           variant={readTimeReached ? "primary" : "secondary"}
           onClick={handleClaimReward}
           disabled={!readTimeReached || isClaiming || claimed}
+          size="sm"
           className="w-full"
         >
           {isClaiming ? (

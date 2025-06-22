@@ -5,6 +5,7 @@ import { Button } from "../components/ui/Button";
 import { useAuth } from "../utils/AuthContext";
 import EmptyStateCard from "../components/ui/EmptyStateCard";
 import TokenHoldings from "../components/TokenHoldings";
+import ReaderNFTCollection from "../components/ReaderNFTCollection";
 import {
   subscribeToReaderCollections,
   subscribeToReadingHistory,
@@ -16,7 +17,13 @@ import {
   type ReaderNotification,
 } from "../utils/storyService";
 
-type Tab = "collections" | "reading" | "voting" | "tokens" | "notifications";
+type Tab =
+  | "collections"
+  | "reading"
+  | "voting"
+  | "nfts"
+  | "tokens"
+  | "notifications";
 
 const ReaderDashboardPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>("collections");
@@ -376,6 +383,9 @@ const ReaderDashboardPage = () => {
           </div>
         );
 
+      case "nfts":
+        return <ReaderNFTCollection userId={currentUser?.uid || ""} />;
+
       case "tokens":
         return <TokenHoldings userId={currentUser?.uid || ""} />;
 
@@ -410,6 +420,8 @@ const ReaderDashboardPage = () => {
                             : notification.type === "vote_results"
                             ? "bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
                             : notification.type === "collect_success"
+                            ? "bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400"
+                            : notification.type === "nft_mint_success"
                             ? "bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400"
                             : "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400"
                         }`}
@@ -448,6 +460,22 @@ const ReaderDashboardPage = () => {
                             />
                           </svg>
                         )}
+                        {notification.type === "nft_mint_success" && (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                            />
+                          </svg>
+                        )}
                         {notification.type === "author_update" && (
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -472,6 +500,8 @@ const ReaderDashboardPage = () => {
                               "Voting Results"}
                             {notification.type === "collect_success" &&
                               "Chapter Collected"}
+                            {notification.type === "nft_mint_success" &&
+                              "NFT Successfully Minted"}
                             {notification.type === "author_update" &&
                               "Author Update"}
                           </p>
@@ -501,6 +531,14 @@ const ReaderDashboardPage = () => {
                               You successfully collected{" "}
                               <strong>{notification.chapterTitle}</strong> from
                               <strong> {notification.storyTitle}</strong>.
+                            </>
+                          )}
+                          {notification.type === "nft_mint_success" && (
+                            <>
+                              You successfully minted edition{" "}
+                              <strong>#{notification.editionNumber}</strong> of{" "}
+                              <strong>{notification.chapterTitle}</strong> from{" "}
+                              <strong>{notification.storyTitle}</strong>.
                             </>
                           )}
                           {notification.type === "author_update" && (
@@ -589,6 +627,17 @@ const ReaderDashboardPage = () => {
             >
               <span className="hidden xs:inline">Voting History</span>
               <span className="xs:hidden">Voting</span>
+            </button>
+            <button
+              className={`mr-4 sm:mr-8 py-4 px-1 text-sm font-medium border-b-2 ${
+                activeTab === "nfts"
+                  ? "border-primary-600 dark:border-primary-400 text-primary-600 dark:text-primary-400"
+                  : "border-transparent text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-200"
+              }`}
+              onClick={() => setActiveTab("nfts")}
+            >
+              <span className="hidden xs:inline">NFT Collection</span>
+              <span className="xs:hidden">NFTs</span>
             </button>
             <button
               className={`mr-4 sm:mr-8 py-4 px-1 text-sm font-medium border-b-2 ${

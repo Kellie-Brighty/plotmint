@@ -183,6 +183,73 @@ export function useChapterNFT() {
     }
   };
 
+  // Mint public edition (readers)
+  const mintEdition = async (nftContractAddress: Address) => {
+    try {
+      if (!isConnected || !address) {
+        throw new Error("Wallet not connected");
+      }
+
+      const walletClient = getWalletClient();
+      const publicClient = getPublicClient();
+
+      if (!walletClient || !publicClient) {
+        throw new Error("Wallet client not available");
+      }
+
+      setIsMinting(true);
+      setError(null);
+      setIsConfirmed(false);
+      setTxHash(null);
+
+      console.log("🎨 Minting public edition:", {
+        nftContract: nftContractAddress,
+        minter: address,
+      });
+
+      // Get the mint price from the contract
+      const mintPrice = await publicClient.readContract({
+        address: nftContractAddress,
+        abi: CHAPTER_NFT_ABI,
+        functionName: "MINT_PRICE",
+      });
+
+      console.log("💰 Mint price:", mintPrice.toString(), "wei");
+
+      // Call mintEdition on the ChapterNFT contract with payment
+      const hash = await walletClient.writeContract({
+        address: nftContractAddress,
+        abi: CHAPTER_NFT_ABI,
+        functionName: "mintEdition",
+        args: [],
+        value: mintPrice as bigint,
+        chain: baseSepolia,
+        account: address,
+      });
+
+      setTxHash(hash);
+      console.log("📝 Public edition mint transaction submitted:", hash);
+
+      // Wait for transaction confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash,
+      });
+
+      console.log("✅ Public edition minted:", receipt);
+      setIsConfirmed(true);
+      setIsMinting(false);
+
+      return { hash, receipt };
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to mint edition";
+      console.error("❌ Error minting public edition:", err);
+      setError(errorMessage);
+      setIsMinting(false);
+      throw err;
+    }
+  };
+
   // Get Chapter NFT contract address for a chapter
   const getChapterNFTAddress = async (
     chapterId: string
@@ -261,14 +328,98 @@ export function useChapterNFT() {
     }
   };
 
+  // Check how many NFTs a user owns from a specific contract
+  const getUserNFTBalance = async (
+    nftContractAddress: Address,
+    userAddress: Address
+  ): Promise<number> => {
+    try {
+      const publicClient = getPublicClient();
+      if (!publicClient) {
+        return 0;
+      }
+
+      const balance = await publicClient.readContract({
+        address: nftContractAddress,
+        abi: CHAPTER_NFT_ABI,
+        functionName: "balanceOf",
+        args: [userAddress],
+      });
+
+      return Number(balance);
+    } catch (err) {
+      console.error("Error getting user NFT balance:", err);
+      return 0;
+    }
+  };
+
+  // Get the specific token IDs owned by a user (brute force approach for small collections)
+  const getUserOwnedTokenIds = async (
+    nftContractAddress: Address,
+    userAddress: Address
+  ): Promise<number[]> => {
+    try {
+      const publicClient = getPublicClient();
+      if (!publicClient) {
+        return [];
+      }
+
+      // First check how many NFTs the user owns
+      const balance = await getUserNFTBalance(nftContractAddress, userAddress);
+      if (balance === 0) {
+        return [];
+      }
+
+      // Get the current edition to know how many tokens exist
+      const currentEdition = await publicClient.readContract({
+        address: nftContractAddress,
+        abi: CHAPTER_NFT_ABI,
+        functionName: "currentEdition",
+      });
+
+      const ownedTokens: number[] = [];
+
+      // Check each token ID from 1 to currentEdition
+      for (let tokenId = 1; tokenId <= Number(currentEdition); tokenId++) {
+        try {
+          const owner = await publicClient.readContract({
+            address: nftContractAddress,
+            abi: CHAPTER_NFT_ABI,
+            functionName: "ownerOf",
+            args: [BigInt(tokenId)],
+          });
+
+          // Normalize addresses for comparison (convert to lowercase)
+          const normalizedOwner = (owner as string).toLowerCase();
+          const normalizedUser = userAddress.toLowerCase();
+
+          if (normalizedOwner === normalizedUser) {
+            ownedTokens.push(tokenId);
+          }
+        } catch (error) {
+          // Token doesn't exist or other error, skip
+          continue;
+        }
+      }
+
+      return ownedTokens;
+    } catch (err) {
+      console.error("Error getting user owned token IDs:", err);
+      return [];
+    }
+  };
+
   return {
     // Creation functions
     createChapterNFT,
     mintFirstEdition,
+    mintEdition,
 
     // Query functions
     getChapterNFTAddress,
     getChapterNFTData,
+    getUserNFTBalance,
+    getUserOwnedTokenIds,
 
     // Transaction state
     isCreating,

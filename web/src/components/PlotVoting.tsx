@@ -232,16 +232,16 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700 p-6 mt-8"
+      className="bg-white dark:bg-dark-900 rounded-lg shadow-sm border border-parchment-200 dark:border-dark-700 p-4"
     >
-      <div className="flex justify-between items-start mb-4">
-        <h3 className="text-xl font-display font-bold text-ink-900 dark:text-white">
-          Vote by Purchasing Plot Tokens
+      <div className="flex justify-between items-start mb-3">
+        <h3 className="text-lg font-display font-bold text-ink-900 dark:text-white">
+          Vote on Plot Direction
         </h3>
         {voteEndTime && (
           <div className="text-right">
             <div
-              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                 isVotingActive
                   ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                   : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
@@ -254,11 +254,11 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
       </div>
 
       {!isConnected && (
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-md mb-4 border border-blue-200 dark:border-blue-900/30">
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-md mb-3 border border-blue-200 dark:border-blue-900/30">
           <div className="flex items-start">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0"
+              className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0"
               viewBox="0 0 20 20"
               fill="currentColor"
             >
@@ -268,17 +268,17 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
                 clipRule="evenodd"
               />
             </svg>
-            <p>Connect your wallet to purchase plot tokens and vote.</p>
+            <p className="text-sm">Connect your wallet to purchase plot tokens and vote.</p>
           </div>
         </div>
       )}
 
       {!userCanVote && isConnected && (
-        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded-md mb-4 border border-amber-200 dark:border-amber-900/30">
+        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded-md mb-3 border border-amber-200 dark:border-amber-900/30">
           <div className="flex items-start">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0"
+              className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0"
               viewBox="0 0 20 20"
               fill="currentColor"
             >
@@ -288,20 +288,19 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
                 clipRule="evenodd"
               />
             </svg>
-            <p>
-              As the creator of this story, you cannot purchase tokens or vote
-              on plot directions.
+            <p className="text-sm">
+              As the creator, you cannot purchase tokens or vote on plot directions.
             </p>
           </div>
         </div>
       )}
 
       {!isVotingActive && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-md mb-4 border border-red-200 dark:border-red-900/30">
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-md mb-3 border border-red-200 dark:border-red-900/30">
           <div className="flex items-start">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0"
+              className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0"
               viewBox="0 0 20 20"
               fill="currentColor"
             >
@@ -311,17 +310,17 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
                 clipRule="evenodd"
               />
             </svg>
-            <p>Voting has ended for this chapter. Tokens can now be sold.</p>
+            <p className="text-sm">Voting has ended for this chapter. Tokens can now be sold.</p>
           </div>
         </div>
       )}
 
       {displayError && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 rounded-md mb-4 border border-red-200 dark:border-red-900/30">
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 rounded-md mb-3 border border-red-200 dark:border-red-900/30">
           <div className="flex items-start">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0"
+              className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0"
               viewBox="0 0 20 20"
               fill="currentColor"
             >
@@ -331,19 +330,19 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
                 clipRule="evenodd"
               />
             </svg>
-            <p>{displayError}</p>
+            <p className="text-sm">{displayError}</p>
           </div>
         </div>
       )}
 
-      <div className="space-y-4 mb-6">
+      <div className="space-y-3 mb-4">
         {plotOptions?.map((option, index) => (
           <div
             key={index}
             onClick={() =>
               !hasVoted && isVotingActive && handleVoteSelect(index)
             }
-            className={`relative p-4 border rounded-lg transition-all ${
+            className={`relative p-3 border rounded-lg transition-all ${
               selectedOption === index
                 ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-400"
                 : "border-parchment-200 dark:border-dark-700 hover:bg-parchment-50 dark:hover:bg-dark-800"
@@ -353,36 +352,34 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
                 : "cursor-pointer"
             }`}
           >
-            <div className="flex items-start justify-between">
-              <div className="flex items-start flex-1">
-                <div
-                  className={`w-5 h-5 rounded-full mr-3 mt-0.5 flex items-center justify-center border ${
-                    selectedOption === index
-                      ? "border-primary-500 bg-primary-500 dark:border-primary-400 dark:bg-primary-400"
-                      : "border-parchment-300 dark:border-dark-600"
-                  }`}
-                >
-                  {selectedOption === index && (
-                    <div className="w-2 h-2 rounded-full bg-white"></div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h4 className="font-medium text-ink-900 dark:text-white">
-                      {option.name}
-                    </h4>
-                    <span className="px-2 py-1 text-xs font-mono bg-parchment-100 dark:bg-dark-800 text-ink-600 dark:text-ink-400 rounded">
-                      ${option.symbol}
-                    </span>
-                  </div>
+            <div className="flex items-start">
+              <div
+                className={`w-4 h-4 rounded-full mr-2 mt-0.5 flex items-center justify-center border ${
+                  selectedOption === index
+                    ? "border-primary-500 bg-primary-500 dark:border-primary-400 dark:bg-primary-400"
+                    : "border-parchment-300 dark:border-dark-600"
+                }`}
+              >
+                {selectedOption === index && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 className="font-medium text-sm text-ink-900 dark:text-white truncate">
+                    {option.name}
+                  </h4>
+                  <span className="px-1.5 py-0.5 text-xs font-mono bg-parchment-100 dark:bg-dark-800 text-ink-600 dark:text-ink-400 rounded flex-shrink-0">
+                    ${option.symbol}
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Vote Percentages (shown after voting) */}
             {hasVoted && voteResults.total > 0 && (
-              <div className="mt-3">
-                <div className="relative w-full h-2 bg-parchment-200 dark:bg-dark-700 rounded-full overflow-hidden">
+              <div className="mt-2 ml-6">
+                <div className="relative w-full h-1.5 bg-parchment-200 dark:bg-dark-700 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{
@@ -416,17 +413,17 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
         isVotingActive &&
         selectedOption !== null &&
         !hasVoted && (
-          <div className="mb-6 p-4 bg-parchment-50 dark:bg-dark-800 rounded-lg border border-parchment-200 dark:border-dark-700">
-            <h4 className="font-medium text-ink-900 dark:text-white mb-3">
+          <div className="mb-4 p-3 bg-parchment-50 dark:bg-dark-800 rounded-lg border border-parchment-200 dark:border-dark-700">
+            <h4 className="font-medium text-sm text-ink-900 dark:text-white mb-2">
               Purchase Amount
             </h4>
 
             {!plotOptions?.[selectedOption]?.tokenAddress ? (
-              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded-md mb-3 border border-amber-200 dark:border-amber-900/30">
+              <div className="p-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded-md mb-2 border border-amber-200 dark:border-amber-900/30">
                 <div className="flex items-start">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0"
+                    className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                   >
@@ -436,18 +433,17 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
                       clipRule="evenodd"
                     />
                   </svg>
-                  <p className="text-sm">
-                    Plot option tokens are being deployed. Please check back
-                    shortly to purchase tokens and vote.
+                  <p className="text-xs">
+                    Plot option tokens are being deployed. Check back shortly.
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
+              <div className="space-y-2">
+                <div>
                   <label
                     htmlFor="ethAmount"
-                    className="block text-sm font-medium text-ink-700 dark:text-ink-300 mb-1"
+                    className="block text-xs font-medium text-ink-700 dark:text-ink-300 mb-1"
                   >
                     ETH Amount
                   </label>
@@ -459,28 +455,25 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
                     value={ethAmount}
                     onChange={(e) => setEthAmount(e.target.value)}
                     disabled={isPurchasing}
-                    className="w-full px-3 py-2 border border-parchment-300 dark:border-dark-600 rounded-md bg-white dark:bg-dark-700 text-ink-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50"
+                    className="w-full px-2 py-1.5 text-sm border border-parchment-300 dark:border-dark-600 rounded-md bg-white dark:bg-dark-700 text-ink-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50"
                     placeholder="0.01"
                   />
                 </div>
-                <div className="text-sm text-ink-600 dark:text-ink-400">
-                  <div>
-                    ≈{" "}
-                    {plotOptions?.[selectedOption]?.currentPrice
-                      ? Math.floor(
-                          parseFloat(ethAmount) /
-                            plotOptions[selectedOption]!.currentPrice!
-                        )
-                      : "TBD"}{" "}
-                    tokens
-                  </div>
-                  <div className="text-xs">at current price</div>
+                <div className="text-xs text-ink-600 dark:text-ink-400">
+                  ≈{" "}
+                  {plotOptions?.[selectedOption]?.currentPrice
+                    ? Math.floor(
+                        parseFloat(ethAmount) /
+                          plotOptions[selectedOption]!.currentPrice!
+                      )
+                    : "TBD"}{" "}
+                  tokens at current price
                 </div>
               </div>
             )}
 
             <p className="text-xs text-ink-500 dark:text-ink-400 mt-2">
-              Minimum purchase: 0.001 ETH. Tokens can be sold after voting ends.
+              Min: 0.001 ETH. Tokens can be sold after voting ends.
             </p>
           </div>
         )}
@@ -496,7 +489,7 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
           !plotOptions?.[selectedOption || 0]?.tokenAddress ||
           parseFloat(ethAmount) <= 0
         }
-        className={`w-full py-3 px-4 font-medium rounded-md transition-colors ${
+        className={`w-full py-2.5 px-3 text-sm font-medium rounded-md transition-colors ${
           !userCanVote ||
           selectedOption === null ||
           isPurchasing ||
@@ -508,20 +501,20 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
         }`}
       >
         {isPurchasing
-          ? "Purchasing Tokens..."
+          ? "Purchasing..."
           : hasVoted
           ? "Tokens Purchased"
           : selectedOption !== null &&
             !plotOptions?.[selectedOption]?.tokenAddress
-          ? "Token not deployed yet"
+          ? "Token not deployed"
           : selectedOption !== null
           ? `Purchase ${plotOptions?.[selectedOption]?.symbol} Tokens`
           : "Select Plot Option"}
       </button>
 
-      <p className="text-sm text-ink-500 dark:text-ink-400 mt-3">
+      <p className="text-xs text-ink-500 dark:text-ink-400 mt-2">
         Purchase tokens to vote on the story direction. The plot option with the
-        most token purchases wins and becomes the next chapter.
+        most token purchases wins.
       </p>
     </motion.div>
   );

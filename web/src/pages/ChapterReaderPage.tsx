@@ -510,147 +510,304 @@ const ChapterReaderPage = () => {
       </motion.div>
 
       <div className="container mx-auto px-4 sm:px-6 mt-8">
-        <div className="max-w-3xl mx-auto">
-          {/* Chapter Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-display font-bold text-ink-900 dark:text-white mb-4 chapter-title">
-              {chapter.title}
-            </h1>
-            <div className="flex items-center text-sm text-ink-600 dark:text-ink-300">
-              <span>{formatDate(chapter.createdAt)}</span>
-              <span className="mx-2">•</span>
-              <span>
-                {requiredReadTime > 0
-                  ? formatReadTime(requiredReadTime)
-                  : Math.ceil(chapter.content.split(" ").length / 200) +
-                    " min"}{" "}
-                read
-              </span>
-              {readTimeReached && (
-                <>
-                  <span className="mx-2">•</span>
-                  <span className="text-green-600 dark:text-green-400 font-medium flex items-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 mr-1"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
+        {/* Mobile Layout (unchanged) - Stack content vertically */}
+        <div className="lg:hidden">
+          <div className="max-w-3xl mx-auto">
+            {/* Chapter Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-display font-bold text-ink-900 dark:text-white mb-4 chapter-title">
+                {chapter.title}
+              </h1>
+              <div className="flex items-center text-sm text-ink-600 dark:text-ink-300">
+                <span>{formatDate(chapter.createdAt)}</span>
+                <span className="mx-2">•</span>
+                <span>
+                  {requiredReadTime > 0
+                    ? formatReadTime(requiredReadTime)
+                    : Math.ceil(chapter.content.split(" ").length / 200) +
+                      " min"}{" "}
+                  read
+                </span>
+                {readTimeReached && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <span className="text-green-600 dark:text-green-400 font-medium flex items-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 mr-1"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      Read Complete
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Chapter Content */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="mb-16 max-h-[70vh] overflow-y-auto border border-parchment-200 dark:border-dark-700 rounded-lg p-6 bg-white dark:bg-dark-900 shadow-sm"
+              ref={contentRef}
+            >
+              <div
+                className="prose prose-lg prose-brown dark:prose-invert max-w-none whitespace-pre-line break-anywhere"
+                dangerouslySetInnerHTML={{ __html: chapter.content }}
+              />
+            </motion.div>
+
+            {/* Chapter Navigation */}
+            <div className="border-t border-parchment-200 dark:border-dark-700 pt-8 mb-12">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                {/* Navigation */}
+                <div className="flex items-center space-x-4">
+                  {previousChapterId && (
+                    <Link
+                      to={`/stories/${storyId}/chapters/${previousChapterId}`}
+                      className="inline-flex items-center justify-center px-4 py-2 bg-parchment-100 dark:bg-dark-800 text-ink-800 dark:text-ink-200 rounded-md text-sm font-medium hover:bg-parchment-200 dark:hover:bg-dark-700 transition-colors"
                     >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    Read Complete
-                  </span>
-                </>
-              )}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 mr-1"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 19l-7-7 7-7"
+                        />
+                      </svg>
+                      Previous Chapter
+                    </Link>
+                  )}
+
+                  {nextChapterId && (
+                    <Link
+                      to={`/stories/${storyId}/chapters/${nextChapterId}`}
+                      className="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors"
+                    >
+                      Next Chapter
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 ml-1"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Choice Points or Chapter Actions */}
+            <ChapterActions
+              storyId={storyId}
+              chapterId={chapterId}
+              creatorId={story.creatorId}
+              choiceOptions={chapter.choiceOptions}
+              hasChoicePoint={chapter.hasChoicePoint}
+              readTime={readTime}
+              requiredReadTime={requiredReadTime}
+              chapter={chapter}
+              storyTitle={story.title}
+              chapterTitle={chapter.title}
+            />
+
+            {/* Back to Story Link */}
+            <div className="text-center">
+              <Link
+                to={`/stories/${storyId}`}
+                className="inline-flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+                Back to {story.title}
+              </Link>
             </div>
           </div>
+        </div>
 
-          {/* Chapter Content */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-16 max-h-[70vh] overflow-y-auto border border-parchment-200 dark:border-dark-700 rounded-lg p-6 bg-white dark:bg-dark-900 shadow-sm"
-            ref={contentRef}
-          >
-            <div
-              className="prose prose-lg prose-brown dark:prose-invert max-w-none whitespace-pre-line break-anywhere"
-              dangerouslySetInnerHTML={{ __html: chapter.content }}
-            />
-          </motion.div>
-
-          {/* Chapter Navigation */}
-          <div className="border-t border-parchment-200 dark:border-dark-700 pt-8 mb-12">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              {/* Navigation */}
-              <div className="flex items-center space-x-4">
-                {previousChapterId && (
-                  <Link
-                    to={`/stories/${storyId}/chapters/${previousChapterId}`}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-parchment-100 dark:bg-dark-800 text-ink-800 dark:text-ink-200 rounded-md text-sm font-medium hover:bg-parchment-200 dark:hover:bg-dark-700 transition-colors"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 mr-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 19l-7-7 7-7"
-                      />
-                    </svg>
-                    Previous Chapter
-                  </Link>
+        {/* Desktop Layout - Two column layout with sidebar */}
+        <div className="hidden lg:flex lg:gap-8 max-w-7xl mx-auto">
+          {/* Main Content Area - Left Side */}
+          <div className="flex-1 max-w-4xl">
+            {/* Chapter Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-display font-bold text-ink-900 dark:text-white mb-4 chapter-title">
+                {chapter.title}
+              </h1>
+              <div className="flex items-center text-sm text-ink-600 dark:text-ink-300">
+                <span>{formatDate(chapter.createdAt)}</span>
+                <span className="mx-2">•</span>
+                <span>
+                  {requiredReadTime > 0
+                    ? formatReadTime(requiredReadTime)
+                    : Math.ceil(chapter.content.split(" ").length / 200) +
+                      " min"}{" "}
+                  read
+                </span>
+                {readTimeReached && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <span className="text-green-600 dark:text-green-400 font-medium flex items-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 mr-1"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      Read Complete
+                    </span>
+                  </>
                 )}
+              </div>
+            </div>
 
-                {nextChapterId && (
-                  <Link
-                    to={`/stories/${storyId}/chapters/${nextChapterId}`}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors"
-                  >
-                    Next Chapter
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 ml-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+            {/* Chapter Content */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="mb-8 max-h-[calc(100vh-200px)] overflow-y-auto border border-parchment-200 dark:border-dark-700 rounded-lg p-8 bg-white dark:bg-dark-900 shadow-sm"
+              ref={contentRef}
+            >
+              <div
+                className="prose prose-lg prose-brown dark:prose-invert max-w-none whitespace-pre-line break-anywhere"
+                dangerouslySetInnerHTML={{ __html: chapter.content }}
+              />
+            </motion.div>
+
+            {/* Chapter Navigation */}
+            <div className="border-t border-parchment-200 dark:border-dark-700 pt-6 mb-8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  {previousChapterId && (
+                    <Link
+                      to={`/stories/${storyId}/chapters/${previousChapterId}`}
+                      className="inline-flex items-center justify-center px-4 py-2 bg-parchment-100 dark:bg-dark-800 text-ink-800 dark:text-ink-200 rounded-md text-sm font-medium hover:bg-parchment-200 dark:hover:bg-dark-700 transition-colors"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </Link>
-                )}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 mr-1"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 19l-7-7 7-7"
+                        />
+                      </svg>
+                      Previous Chapter
+                    </Link>
+                  )}
+
+                  {nextChapterId && (
+                    <Link
+                      to={`/stories/${storyId}/chapters/${nextChapterId}`}
+                      className="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors"
+                    >
+                      Next Chapter
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 ml-1"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </Link>
+                  )}
+                </div>
+
+                {/* Back to Story Link */}
+                <Link
+                  to={`/stories/${storyId}`}
+                  className="inline-flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 mr-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                  Back to {story.title}
+                </Link>
               </div>
             </div>
           </div>
 
-          {/* Choice Points or Chapter Actions */}
-          <ChapterActions
-            storyId={storyId}
-            chapterId={chapterId}
-            creatorId={story.creatorId}
-            choiceOptions={chapter.choiceOptions}
-            hasChoicePoint={chapter.hasChoicePoint}
-            readTime={readTime}
-            requiredReadTime={requiredReadTime}
-            chapter={chapter}
-          />
-
-          {/* Back to Story Link */}
-          <div className="text-center">
-            <Link
-              to={`/stories/${storyId}`}
-              className="inline-flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-1"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              Back to {story.title}
-            </Link>
+          {/* Sidebar - Right Side */}
+          <div className="w-80 flex-shrink-0">
+            <div className="sticky top-24">
+              {/* Chapter Actions Sidebar */}
+              <ChapterActions
+                storyId={storyId}
+                chapterId={chapterId}
+                creatorId={story.creatorId}
+                choiceOptions={chapter.choiceOptions}
+                hasChoicePoint={chapter.hasChoicePoint}
+                readTime={readTime}
+                requiredReadTime={requiredReadTime}
+                chapter={chapter}
+                storyTitle={story.title}
+                chapterTitle={chapter.title}
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -314,18 +314,12 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
         if (!story) continue;
 
         try {
-          console.log(
-            `🔍 Fetching NFT data for chapter "${chapter.title}" at ${chapter.nftContractAddress}`
-          );
-
           // Get real NFT data from contract
           const nftData = await getChapterNFTData(
             chapter.nftContractAddress as Address
           );
 
           if (nftData) {
-            console.log(`✅ Got NFT data:`, nftData);
-
             collections.push({
               chapterId: chapter.id!,
               storyTitle: story.title,
@@ -342,20 +336,15 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
               creatorMinted: nftData.currentEdition > 0, // Creator mints first edition
               royaltiesEarned: 0, // TODO: Calculate from secondary sales
             });
-          } else {
-            console.log(
-              `❌ No NFT data returned for chapter "${chapter.title}"`
-            );
           }
         } catch (error) {
           console.error(
-            `❌ Error fetching NFT data for chapter ${chapter.id}:`,
+            `Error fetching NFT data for chapter ${chapter.id}:`,
             error
           );
         }
       }
 
-      console.log(`🎉 Final NFT collections count: ${collections.length}`);
       setNftCollections(collections);
     } catch (error) {
       console.error("❌ Error fetching NFT collections:", error);
@@ -460,42 +449,12 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Your Created Plot Options</h3>
-            <div className="flex gap-2">
-              <button
-                onClick={async () => {
-                  console.log("🔍 DEBUG: Checking user data...");
-                  const stories = await getUserStories(userId);
-                  console.log("📚 User stories:", stories);
-
-                  for (const story of stories) {
-                    const chapters = await getUserChapters(story.id!, userId);
-                    console.log(
-                      `📖 Story "${story.title}" chapters:`,
-                      chapters
-                    );
-
-                    chapters.forEach((ch) => {
-                      console.log(`Chapter "${ch.title}":`, {
-                        published: ch.published,
-                        plotTokens: ch.plotTokens,
-                        plotOptions: ch.plotOptions,
-                        hasChoicePoint: ch.hasChoicePoint,
-                        choiceOptions: ch.choiceOptions,
-                      });
-                    });
-                  }
-                }}
-                className="px-3 py-1 text-sm bg-yellow-200 dark:bg-yellow-700 rounded-lg hover:bg-yellow-300 dark:hover:bg-yellow-600 transition-colors"
-              >
-                Debug
-              </button>
-              <button
-                onClick={fetchWriterAssets}
-                className="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-              >
-                Refresh
-              </button>
-            </div>
+            <button
+              onClick={fetchWriterAssets}
+              className="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+              Refresh
+            </button>
           </div>
 
           {writerAssets.length === 0 ? (

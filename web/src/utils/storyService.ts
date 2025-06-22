@@ -184,6 +184,7 @@ export interface ReaderNotification {
     | "chapter_published"
     | "vote_results"
     | "collect_success"
+    | "nft_mint_success"
     | "author_update";
   storyId: string;
   storyTitle: string;
@@ -192,6 +193,7 @@ export interface ReaderNotification {
   result?: string;
   authorName?: string;
   message?: string;
+  editionNumber?: number;
   timestamp: string;
   read: boolean;
 }
@@ -1985,6 +1987,7 @@ export const subscribeToReaderNotifications = (
             | "chapter_published"
             | "vote_results"
             | "collect_success"
+            | "nft_mint_success"
             | "author_update",
           storyId: data.storyId,
           storyTitle: data.storyTitle,
@@ -1993,6 +1996,7 @@ export const subscribeToReaderNotifications = (
           result: data.result,
           authorName: data.authorName,
           message: data.message,
+          editionNumber: data.editionNumber,
           timestamp: data.timestamp.toDate().toISOString(),
           read: data.read,
         });
@@ -2091,6 +2095,7 @@ export const createNotification = async (
     | "chapter_published"
     | "vote_results"
     | "collect_success"
+    | "nft_mint_success"
     | "author_update",
   data: {
     storyId: string;
@@ -2100,6 +2105,7 @@ export const createNotification = async (
     result?: string;
     authorName?: string;
     message?: string;
+    editionNumber?: number;
   }
 ): Promise<string> => {
   if (!userId) {
@@ -2120,6 +2126,7 @@ export const createNotification = async (
       result: data.result || null,
       authorName: data.authorName || null,
       message: data.message || null,
+      editionNumber: data.editionNumber || null,
       timestamp: serverTimestamp(),
       read: false,
     };
