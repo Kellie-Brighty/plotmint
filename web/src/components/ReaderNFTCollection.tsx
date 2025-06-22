@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useWallet } from "../utils/useWallet";
 import { useChapterNFT } from "../utils/useChapterNFT";
-import type { Address } from "viem";
-import type { ChapterData, StoryData } from "../utils/storyService";
+import NFTTransferModal from "./NFTTransferModal";
 import {
   collection,
   query,
@@ -13,6 +12,8 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { db } from "../utils/firebase";
+import type { ChapterData, StoryData } from "../utils/storyService";
+import type { Address } from "viem";
 
 interface NFTCollectionItem {
   chapterId: string;
@@ -40,6 +41,10 @@ export const ReaderNFTCollection: React.FC<ReaderNFTCollectionProps> = ({
   const [nftCollection, setNftCollection] = useState<NFTCollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [transferModal, setTransferModal] = useState<{
+    isOpen: boolean;
+    nft: NFTCollectionItem | null;
+  }>({ isOpen: false, nft: null });
 
   useEffect(() => {
     if (userId && isConnected) {
@@ -454,7 +459,7 @@ export const ReaderNFTCollection: React.FC<ReaderNFTCollectionProps> = ({
                 </div>
               )}
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-3">
                 <a
                   href={`/stories/${nft.storyId}/chapters/${nft.chapterId}`}
                   className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 text-sm font-medium transition-colors"
@@ -470,6 +475,27 @@ export const ReaderNFTCollection: React.FC<ReaderNFTCollectionProps> = ({
                   View Contract ↗
                 </a>
               </div>
+
+              {/* Transfer Button */}
+              <button
+                onClick={() => setTransferModal({ isOpen: true, nft })}
+                className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-ink-700 dark:text-ink-300 text-sm font-medium rounded-lg transition-colors flex items-center justify-center"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                  />
+                </svg>
+                Transfer NFT
+              </button>
             </div>
           </motion.div>
         ))}
@@ -500,6 +526,26 @@ export const ReaderNFTCollection: React.FC<ReaderNFTCollectionProps> = ({
           </div>
         </div>
       </div>
+
+      {/* NFT Transfer Modal */}
+      {transferModal.nft && (
+        <NFTTransferModal
+          isOpen={transferModal.isOpen}
+          onClose={() => setTransferModal({ isOpen: false, nft: null })}
+          nft={{
+            contractAddress: transferModal.nft.contractAddress,
+            tokenId: transferModal.nft.tokenId || 1,
+            storyTitle: transferModal.nft.storyTitle,
+            chapterTitle: transferModal.nft.chapterTitle,
+            editionNumber: transferModal.nft.editionNumber || 1,
+          }}
+          onTransferSuccess={() => {
+            // Refresh the collection after successful transfer
+            fetchUserNFTCollection();
+            setTransferModal({ isOpen: false, nft: null });
+          }}
+        />
+      )}
     </div>
   );
 };

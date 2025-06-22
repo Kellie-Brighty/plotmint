@@ -409,6 +409,89 @@ export function useChapterNFT() {
     }
   };
 
+  // Transfer NFT to another address
+  const transferNFT = async (
+    nftContractAddress: Address,
+    tokenId: number,
+    toAddress: Address
+  ) => {
+    try {
+      if (!isConnected || !address) {
+        throw new Error("Wallet not connected");
+      }
+
+      const walletClient = getWalletClient();
+      const publicClient = getPublicClient();
+
+      if (!walletClient || !publicClient) {
+        throw new Error("Wallet client not available");
+      }
+
+      setError(null);
+
+      console.log("🔄 Transferring NFT:", {
+        contract: nftContractAddress,
+        tokenId,
+        from: address,
+        to: toAddress,
+      });
+
+      // Call transferFrom on the ChapterNFT contract
+      const hash = await walletClient.writeContract({
+        address: nftContractAddress,
+        abi: CHAPTER_NFT_ABI,
+        functionName: "transferFrom",
+        args: [address, toAddress, BigInt(tokenId)],
+        chain: baseSepolia,
+        account: address,
+      });
+
+      console.log("📝 NFT transfer transaction submitted:", hash);
+
+      // Wait for transaction confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash,
+      });
+
+      console.log("✅ NFT transferred successfully:", receipt);
+      return { hash, receipt };
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to transfer NFT";
+      console.error("❌ Error transferring NFT:", err);
+      setError(errorMessage);
+      throw err;
+    }
+  };
+
+  // Check if user can transfer a specific NFT (they own it)
+  const canTransferNFT = async (
+    nftContractAddress: Address,
+    tokenId: number,
+    userAddress: Address
+  ): Promise<boolean> => {
+    try {
+      const publicClient = getPublicClient();
+      if (!publicClient) return false;
+
+      const owner = await publicClient.readContract({
+        address: nftContractAddress,
+        abi: CHAPTER_NFT_ABI,
+        functionName: "ownerOf",
+        args: [BigInt(tokenId)],
+      });
+
+      // Normalize addresses for comparison
+      const normalizedOwner = (owner as string).toLowerCase();
+      const normalizedUser = userAddress.toLowerCase();
+
+      return normalizedOwner === normalizedUser;
+    } catch (err) {
+      console.error("Error checking NFT ownership:", err);
+      return false;
+    }
+  };
+
   return {
     // Creation functions
     createChapterNFT,
@@ -431,5 +514,9 @@ export function useChapterNFT() {
     // Helper methods
     clearError: () => setError(null),
     isLoading: isCreating || isMinting,
+
+    // New functions
+    transferNFT,
+    canTransferNFT,
   };
 }
