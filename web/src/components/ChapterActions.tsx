@@ -74,6 +74,7 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
           currentPrice: 0.001, // Mock price for now
           totalVotes: 0, // Will be updated from vote subscription
           volumeETH: 0,
+          preview: chapter?.plotOptionPreviews?.[index] || "", // Add preview text
         })
       );
 
@@ -89,6 +90,7 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
         currentPrice: 0.001,
         totalVotes: 0,
         volumeETH: 0,
+        preview: chapter?.plotOptionPreviews?.[index] || "", // Add preview text
       }));
 
       setPlotOptions(emptyOptions);
@@ -241,6 +243,7 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
           chapterId={chapterId}
           creatorId={creatorId}
           plotOptions={plotOptions}
+          plotOptionPreviews={chapter?.plotOptionPreviews}
           currentVote={voteStatus.selectedOption}
           onVote={handleVote}
         />

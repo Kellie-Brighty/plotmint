@@ -108,4 +108,21 @@
   - Screen reader support
   - Keyboard navigation
 
+## 7. TODO Items
+
+- **Coin Details After Voting Period**
+
+  - Show detailed token analytics after voting closes
+  - Display final voting results and token distribution
+  - Show token price changes and trading volume
+  - Allow token holders to view their position value
+  - Provide option to sell tokens after voting ends
+
+- **View Plot Options Glimpse**
+  - Add preview/glimpse functionality for plot options
+  - Show brief description or teaser of each choice
+  - Allow readers to preview consequences without spoilers
+  - Implement expandable/collapsible plot option details
+  - Consider hover or modal-based preview system
+
 Would you like me to elaborate on any specific part of this roadmap?

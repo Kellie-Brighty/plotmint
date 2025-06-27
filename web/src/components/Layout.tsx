@@ -15,11 +15,9 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-parchment-50 dark:bg-dark-950 text-ink-900 dark:text-white">
       <Navbar />
-      <div className="content-wrapper">
-        <main>
-          <Outlet />
-        </main>
-      </div>
+      <main className="flex-1">
+        <Outlet />
+      </main>
       <Footer />
     </div>
   );

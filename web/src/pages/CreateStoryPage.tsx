@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../utils/AuthContext";
@@ -21,6 +21,15 @@ const AVAILABLE_GENRES = [
 const CreateStoryPage = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, []);
+
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState({
     title: "",

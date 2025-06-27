@@ -37,6 +37,14 @@ const ReaderDashboardPage = () => {
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const { currentUser } = useAuth();
 
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, []);
+
   // Subscribe to real-time collections data
   useEffect(() => {
     if (!currentUser) {

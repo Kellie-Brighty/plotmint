@@ -5,6 +5,7 @@ import StoryFilter from "../components/story/StoryFilter";
 import { Link } from "react-router-dom";
 import { subscribeToStories } from "../utils/storyService";
 import type { StoriesFilter, StoryData } from "../utils/storyService";
+// import { useAuth } from "../utils/AuthContext";
 
 // Filter and sort options
 const GENRE_FILTERS = [
@@ -29,6 +30,20 @@ const StoriesPage = () => {
   const [stories, setStories] = useState<StoryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // const [searchTerm, setSearchTerm] = useState("");
+  // const [selectedGenre, setSelectedGenre] = useState("all");
+  // const [sortBy, setSortBy] = useState<"newest" | "popular" | "trending">(
+  //   "newest"
+  // );
+  // const { currentUser } = useAuth();
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, []);
 
   // Subscribe to real-time stories data
   useEffect(() => {

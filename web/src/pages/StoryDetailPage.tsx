@@ -48,6 +48,14 @@ const StoryDetailPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [viewRecorded, setViewRecorded] = useState(false);
 
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, []);
+
   // Subscribe to real-time story data
   useEffect(() => {
     if (!storyId) {

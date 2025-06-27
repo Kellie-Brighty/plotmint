@@ -7,7 +7,10 @@ import {
   COIN_TRADER_ABI,
   COIN_TRADER_ADDRESS,
   PLATFORM_CONFIG,
+  createPlotTokenPoolKey,
+  getTradeDeadline,
   type PlotTokenPurchase,
+  type PlotTokenSale,
 } from "./coinTrader";
 
 export function useCoinTrader() {
@@ -24,6 +27,7 @@ export function useCoinTrader() {
     ethAmount,
     recipient,
     minTokensOut = 0n,
+    deadline,
   }: PlotTokenPurchase) => {
     try {
       if (!isConnected || !address) {
@@ -44,51 +48,53 @@ export function useCoinTrader() {
 
       const amountInWei = parseEther(ethAmount);
 
-      // Calculate minimum tokens out with 0.1% slippage if not provided
-      const calculatedMinOut = minTokensOut || amountInWei / 1000n;
+      // Calculate minimum tokens out with 0.5% slippage if not provided
+      const calculatedMinOut = minTokensOut || (amountInWei * 995n) / 1000n;
 
-      console.log("🚀 Purchasing plot tokens:", {
+      // Get deadline (default 20 minutes from now)
+      const tradeDeadline = deadline || getTradeDeadline();
+
+      // Create pool key for this token
+      const poolKey = createPlotTokenPoolKey(tokenAddress);
+
+      console.log("🚀 Purchasing plot tokens with Zora Coin Trader:", {
         tokenAddress,
         ethAmount,
         recipient,
         minTokensOut: calculatedMinOut.toString(),
+        deadline: tradeDeadline.toString(),
+        poolKey,
         coinTraderAddress: COIN_TRADER_ADDRESS,
         platformReferrer: PLATFORM_CONFIG.platformReferrer,
         amountInWei: amountInWei.toString(),
       });
 
-      console.log("📋 Contract call parameters:", {
+      console.log("📋 buyCoin call parameters:", {
         address: COIN_TRADER_ADDRESS,
-        functionName: "tradeCoin",
-        args: [
-          tokenAddress, // token address
-          true, // isBuy = true
-          recipient, // recipient
-          amountInWei.toString(), // amountIn (ETH)
-          calculatedMinOut.toString(), // minAmountOut (tokens)
-          "0", // sqrtPriceLimitX96 (no price limit)
-          PLATFORM_CONFIG.platformReferrer, // tradeReferrer
-        ],
+        functionName: "buyCoin",
+        poolKey,
+        recipient,
+        minAmountOut: calculatedMinOut.toString(),
+        deadline: tradeDeadline.toString(),
+        tradeReferrer: PLATFORM_CONFIG.platformReferrer,
         value: amountInWei.toString(),
         chain: "baseSepolia",
         account: address,
       });
 
-      // Write the contract transaction (let wallet handle gas estimation)
+      // Call buyCoin function with ETH
       const hash = await walletClient.writeContract({
         address: COIN_TRADER_ADDRESS,
         abi: COIN_TRADER_ABI,
-        functionName: "tradeCoin",
+        functionName: "buyCoin",
         args: [
-          tokenAddress, // token address
-          true, // isBuy = true
-          recipient, // recipient
-          amountInWei, // amountIn (ETH)
+          poolKey, // PoolKey struct
+          recipient, // recipient address
           calculatedMinOut, // minAmountOut (tokens)
-          0n, // sqrtPriceLimitX96 (no price limit)
+          tradeDeadline, // deadline timestamp
           PLATFORM_CONFIG.platformReferrer, // tradeReferrer
         ],
-        value: amountInWei,
+        value: amountInWei, // ETH amount to spend
         chain: baseSepolia,
         account: address,
       });
@@ -121,12 +127,8 @@ export function useCoinTrader() {
     tokenAmount,
     recipient,
     minEthOut = 0n,
-  }: {
-    tokenAddress: Address;
-    tokenAmount: bigint;
-    recipient: Address;
-    minEthOut?: bigint;
-  }) => {
+    deadline,
+  }: PlotTokenSale) => {
     try {
       if (!isConnected || !address) {
         throw new Error("Wallet not connected");
@@ -144,28 +146,37 @@ export function useCoinTrader() {
       setIsConfirmed(false);
       setTxHash(null);
 
-      console.log("🔄 Selling plot tokens:", {
+      // Calculate minimum ETH out with 0.5% slippage if not provided
+      const calculatedMinOut = minEthOut || (tokenAmount * 995n) / 1000n;
+
+      // Get deadline (default 20 minutes from now)
+      const tradeDeadline = deadline || getTradeDeadline();
+
+      // Create pool key for this token
+      const poolKey = createPlotTokenPoolKey(tokenAddress);
+
+      console.log("🔄 Selling plot tokens with Zora Coin Trader:", {
         tokenAddress,
         tokenAmount: tokenAmount.toString(),
         recipient,
-        minEthOut: minEthOut.toString(),
+        minEthOut: calculatedMinOut.toString(),
+        deadline: tradeDeadline.toString(),
+        poolKey,
       });
 
-      // Write the contract transaction (let wallet handle gas estimation)
+      // Call sellCoin function
       const hash = await walletClient.writeContract({
         address: COIN_TRADER_ADDRESS,
         abi: COIN_TRADER_ABI,
-        functionName: "tradeCoin",
+        functionName: "sellCoin",
         args: [
-          tokenAddress, // token address
-          false, // isBuy = false
-          recipient, // recipient
-          tokenAmount, // amountIn (tokens)
-          minEthOut, // minAmountOut (ETH)
-          0n, // sqrtPriceLimitX96 (no price limit)
+          poolKey, // PoolKey struct
+          tokenAmount, // amountIn (tokens to sell)
+          recipient, // recipient address
+          calculatedMinOut, // minAmountOut (ETH)
+          tradeDeadline, // deadline timestamp
           PLATFORM_CONFIG.platformReferrer, // tradeReferrer
         ],
-        value: 0n, // No ETH sent for selling
         chain: baseSepolia,
         account: address,
       });
@@ -199,9 +210,9 @@ export function useCoinTrader() {
       const publicClient = getPublicClient();
       if (!publicClient) throw new Error("Public client not available");
 
-      // This would need to be implemented based on the CoinTrader contract
+      // This would need to be implemented based on pool liquidity
       // For now, return a placeholder value
-      // TODO: Implement actual price fetching from the contract
+      // TODO: Implement actual price fetching from the pool
       return 0.001; // Placeholder: 0.001 ETH per token
     } catch (error) {
       console.error("Error getting token price:", error);

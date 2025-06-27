@@ -49,9 +49,20 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const historyRef = useRef(new EditorHistory());
 
-  // Set initial content and handle placeholder visibility
+  // Track if the current change is from user input to avoid cursor reset
+  const isUserInputRef = useRef(false);
+  // Track the last value to avoid unnecessary updates
+  const lastValueRef = useRef<string>("");
+
+  // Set initial content and handle external value changes
   useEffect(() => {
-    if (editorRef.current && !isInitialized) {
+    if (!editorRef.current) return;
+
+    // Skip if this is the same content we just sent up
+    if (value === lastValueRef.current) return;
+
+    // If not initialized yet, set up the editor
+    if (!isInitialized) {
       // Set initial HTML content
       if (value) {
         editorRef.current.innerHTML = value;
@@ -65,12 +76,89 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       historyRef.current.addState(editorRef.current.innerHTML);
 
       // Setup IME support for international languages
-      if (editorRef.current) {
-        setupIMESupport({ current: editorRef.current });
-      }
+      setupIMESupport({ current: editorRef.current });
 
       setIsInitialized(true);
+      lastValueRef.current = value;
+      return;
     }
+
+    // Handle external value changes (not from user input)
+    if (!isUserInputRef.current) {
+      // Save current cursor position
+      const selection = window.getSelection();
+      let range: Range | null = null;
+      let cursorOffset = 0;
+
+      if (
+        selection &&
+        selection.rangeCount > 0 &&
+        isSelectionInEditor(selection.getRangeAt(0))
+      ) {
+        range = selection.getRangeAt(0);
+        // Calculate cursor position as text offset
+        const preCaretRange = range.cloneRange();
+        preCaretRange.selectNodeContents(editorRef.current);
+        preCaretRange.setEnd(range.endContainer, range.endOffset);
+        cursorOffset = preCaretRange.toString().length;
+      }
+
+      // Update content
+      if (value) {
+        editorRef.current.innerHTML = value;
+        setShowPlaceholder(false);
+      } else {
+        editorRef.current.innerHTML = "";
+        setShowPlaceholder(true);
+      }
+
+      // Restore cursor position if we had one
+      if (range && cursorOffset >= 0) {
+        requestAnimationFrame(() => {
+          try {
+            const newSelection = window.getSelection();
+            if (newSelection && editorRef.current) {
+              const textContent = editorRef.current.textContent || "";
+              if (cursorOffset <= textContent.length) {
+                const walker = document.createTreeWalker(
+                  editorRef.current,
+                  NodeFilter.SHOW_TEXT,
+                  null
+                );
+
+                let currentOffset = 0;
+                let node = walker.nextNode();
+
+                while (node) {
+                  const nodeLength = node.textContent?.length || 0;
+                  if (currentOffset + nodeLength >= cursorOffset) {
+                    const newRange = document.createRange();
+                    newRange.setStart(
+                      node,
+                      Math.max(0, cursorOffset - currentOffset)
+                    );
+                    newRange.collapse(true);
+                    newSelection.removeAllRanges();
+                    newSelection.addRange(newRange);
+                    break;
+                  }
+                  currentOffset += nodeLength;
+                  node = walker.nextNode();
+                }
+              }
+            }
+          } catch (error) {
+            // Silently ignore cursor restoration errors
+            console.debug("Could not restore cursor position:", error);
+          }
+        });
+      }
+
+      lastValueRef.current = value;
+    }
+
+    // Reset the user input flag
+    isUserInputRef.current = false;
   }, [value, isInitialized]);
 
   // Save selection when user selects text
@@ -162,6 +250,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   // Execute formatting command
   const executeCommand = (command: CommandType) => {
+    // Mark this as user input to prevent cursor reset
+    isUserInputRef.current = true;
+
     // Restore selection before executing command
     restoreSelection();
 
@@ -219,14 +310,17 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       historyRef.current.addState(editorRef.current.innerHTML);
 
       // Normalize content
-      if (editorRef.current) {
-        normalizeEditorContent({ current: editorRef.current });
-      }
+      normalizeEditorContent({ current: editorRef.current });
 
       // Notify parent component of content change
-      if (editorRef.current) {
-        onChange(getCleanEditorContent({ current: editorRef.current }));
-      }
+      const contentToSave = getCleanEditorContent({
+        current: editorRef.current,
+      });
+
+      // Update our tracking reference
+      lastValueRef.current = contentToSave;
+
+      onChange(contentToSave);
     }
 
     // Focus editor after command execution
@@ -236,6 +330,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // Handle input event
   const handleInput = () => {
     if (editorRef.current) {
+      // Mark this as user input to prevent cursor reset
+      isUserInputRef.current = true;
+
       // Make sure editor content is well-formed
       normalizeEditorContent({ current: editorRef.current });
 
@@ -243,6 +340,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       const contentToSave = getCleanEditorContent({
         current: editorRef.current,
       });
+
+      // Update our tracking reference
+      lastValueRef.current = contentToSave;
+
       onChange(contentToSave);
 
       // Check if editor is empty to control placeholder visibility
@@ -279,6 +380,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
 
+    // Mark this as user input to prevent cursor reset
+    isUserInputRef.current = true;
+
     // Get HTML or text from clipboard
     let content = "";
 
@@ -299,9 +403,19 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       document.execCommand("insertText", false, content);
     }
 
-    // Save to history
+    // Save to history and update parent component
     if (editorRef.current) {
       historyRef.current.addState(editorRef.current.innerHTML);
+
+      // Update content via callback
+      const contentToSave = getCleanEditorContent({
+        current: editorRef.current,
+      });
+
+      // Update our tracking reference
+      lastValueRef.current = contentToSave;
+
+      onChange(contentToSave);
     }
   };
 

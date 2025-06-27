@@ -51,6 +51,7 @@ export interface ChapterData {
   published: boolean;
   hasChoicePoint: boolean;
   choiceOptions?: string[];
+  plotOptionPreviews?: string[]; // Preview snippets for each plot option
   plotTokens?: Array<{
     name: string;
     symbol: string;

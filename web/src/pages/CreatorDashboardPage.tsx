@@ -59,6 +59,14 @@ const CreatorDashboardPage = () => {
   const [_isSaving, setIsSaving] = useState(false);
   const [_publishError, setPublishError] = useState<string | null>(null);
 
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, []);
+
   // Subscribe to real-time stories data
   useEffect(() => {
     if (!currentUser) {
@@ -1067,7 +1075,7 @@ const CreatorDashboardPage = () => {
 
   return (
     <div className="min-h-screen bg-parchment-50 dark:bg-dark-950 pt-24 pb-16">
-      <div className="content-wrapper px-4 sm:px-6 lg:px-8 max-w-full sm:max-w-screen-xl mx-auto">
+      <div className="content-wrapper">
         {/* Page Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -1088,52 +1096,50 @@ const CreatorDashboardPage = () => {
         </motion.div>
 
         {/* Tabs */}
-        <div className="mb-8 -mx-4 sm:mx-0">
-          <div className="overflow-x-auto scrollbar-hide px-4 sm:px-0">
-            <div className="border-b border-parchment-200 dark:border-dark-700 min-w-max pb-px">
-              <nav className="-mb-px flex space-x-6 sm:space-x-8">
-                <button
-                  onClick={() => setActiveTab("stories")}
-                  className={`py-3 sm:py-4 px-1 whitespace-nowrap text-sm sm:text-base ${
-                    activeTab === "stories"
-                      ? "border-b-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400 font-medium"
-                      : "border-b-2 border-transparent text-ink-500 hover:text-ink-700 hover:border-ink-300 dark:text-ink-400 dark:hover:text-ink-300 dark:hover:border-dark-500"
-                  }`}
-                >
-                  Stories
-                </button>
-                <button
-                  onClick={() => setActiveTab("analytics")}
-                  className={`py-3 sm:py-4 px-1 whitespace-nowrap text-sm sm:text-base ${
-                    activeTab === "analytics"
-                      ? "border-b-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400 font-medium"
-                      : "border-b-2 border-transparent text-ink-500 hover:text-ink-700 hover:border-ink-300 dark:text-ink-400 dark:hover:text-ink-300 dark:hover:border-dark-500"
-                  }`}
-                >
-                  Analytics
-                </button>
-                <button
-                  onClick={() => setActiveTab("chapters")}
-                  className={`py-3 sm:py-4 px-1 whitespace-nowrap text-sm sm:text-base ${
-                    activeTab === "chapters"
-                      ? "border-b-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400 font-medium"
-                      : "border-b-2 border-transparent text-ink-500 hover:text-ink-700 hover:border-ink-300 dark:text-ink-400 dark:hover:text-ink-300 dark:hover:border-dark-500"
-                  }`}
-                >
-                  Draft Chapters
-                </button>
-                <button
-                  onClick={() => setActiveTab("assets")}
-                  className={`py-3 sm:py-4 px-1 whitespace-nowrap text-sm sm:text-base ${
-                    activeTab === "assets"
-                      ? "border-b-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400 font-medium"
-                      : "border-b-2 border-transparent text-ink-500 hover:text-ink-700 hover:border-ink-300 dark:text-ink-400 dark:hover:text-ink-300 dark:hover:border-dark-500"
-                  }`}
-                >
-                  Token Assets
-                </button>
-              </nav>
-            </div>
+        <div className="mb-8">
+          <div className="border-b border-parchment-200 dark:border-dark-700">
+            <nav className="-mb-px flex space-x-6 sm:space-x-8 overflow-x-auto">
+              <button
+                onClick={() => setActiveTab("stories")}
+                className={`py-3 sm:py-4 px-1 whitespace-nowrap text-sm sm:text-base ${
+                  activeTab === "stories"
+                    ? "border-b-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400 font-medium"
+                    : "border-b-2 border-transparent text-ink-500 hover:text-ink-700 hover:border-ink-300 dark:text-ink-400 dark:hover:text-ink-300 dark:hover:border-dark-500"
+                }`}
+              >
+                Stories
+              </button>
+              <button
+                onClick={() => setActiveTab("analytics")}
+                className={`py-3 sm:py-4 px-1 whitespace-nowrap text-sm sm:text-base ${
+                  activeTab === "analytics"
+                    ? "border-b-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400 font-medium"
+                    : "border-b-2 border-transparent text-ink-500 hover:text-ink-700 hover:border-ink-300 dark:text-ink-400 dark:hover:text-ink-300 dark:hover:border-dark-500"
+                }`}
+              >
+                Analytics
+              </button>
+              <button
+                onClick={() => setActiveTab("chapters")}
+                className={`py-3 sm:py-4 px-1 whitespace-nowrap text-sm sm:text-base ${
+                  activeTab === "chapters"
+                    ? "border-b-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400 font-medium"
+                    : "border-b-2 border-transparent text-ink-500 hover:text-ink-700 hover:border-ink-300 dark:text-ink-400 dark:hover:text-ink-300 dark:hover:border-dark-500"
+                }`}
+              >
+                Draft Chapters
+              </button>
+              <button
+                onClick={() => setActiveTab("assets")}
+                className={`py-3 sm:py-4 px-1 whitespace-nowrap text-sm sm:text-base ${
+                  activeTab === "assets"
+                    ? "border-b-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400 font-medium"
+                    : "border-b-2 border-transparent text-ink-500 hover:text-ink-700 hover:border-ink-300 dark:text-ink-400 dark:hover:text-ink-300 dark:hover:border-dark-500"
+                }`}
+              >
+                Token Assets
+              </button>
+            </nav>
           </div>
         </div>
 

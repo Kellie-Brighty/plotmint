@@ -31,6 +31,7 @@ interface ChapterData {
   content: string;
   hasChoicePoint: boolean;
   choiceOptions: string[];
+  plotOptionPreviews?: string[];
 }
 
 interface PublishingStep {
@@ -56,6 +57,7 @@ const ChapterEditorPage = () => {
     content: "",
     hasChoicePoint: true, // Always required
     choiceOptions: ["", ""],
+    plotOptionPreviews: ["", ""],
   });
   const [storyData, setStoryData] = useState<StoryData | null>(
     location.state?.storyData || null
@@ -74,6 +76,14 @@ const ChapterEditorPage = () => {
 
   const { currentUser } = useAuth();
   const { getWalletClient, getPublicClient, isConnected } = useWallet();
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, []);
 
   // Fetch chapter data if editing an existing draft
   useEffect(() => {
@@ -98,6 +108,7 @@ const ChapterEditorPage = () => {
             content: fetchedChapter.content || "",
             hasChoicePoint: fetchedChapter.hasChoicePoint || false,
             choiceOptions: fetchedChapter.choiceOptions || ["", ""],
+            plotOptionPreviews: fetchedChapter.plotOptionPreviews || ["", ""],
           });
 
           // Fetch story data for this chapter if not already loaded
@@ -200,6 +211,9 @@ const ChapterEditorPage = () => {
           choiceOptions: chapterData.hasChoicePoint
             ? chapterData.choiceOptions
             : [],
+          plotOptionPreviews: chapterData.hasChoicePoint
+            ? chapterData.plotOptionPreviews
+            : [],
           published: false, // Keep as draft
         });
         savedChapterId = chapterId;
@@ -215,6 +229,9 @@ const ChapterEditorPage = () => {
             // Always send an array for choiceOptions, empty if not using choice points
             choiceOptions: chapterData.hasChoicePoint
               ? chapterData.choiceOptions
+              : [],
+            plotOptionPreviews: chapterData.hasChoicePoint
+              ? chapterData.plotOptionPreviews
               : [],
             published: false, // Explicitly set as draft
           },
@@ -327,6 +344,7 @@ const ChapterEditorPage = () => {
           content: chapterData.content,
           hasChoicePoint: chapterData.hasChoicePoint,
           choiceOptions: filledOptions,
+          plotOptionPreviews: chapterData.plotOptionPreviews,
           published: true,
           updatedAt: serverTimestamp() as Timestamp,
         });
@@ -341,6 +359,7 @@ const ChapterEditorPage = () => {
             content: chapterData.content,
             hasChoicePoint: true,
             choiceOptions: filledOptions,
+            plotOptionPreviews: chapterData.plotOptionPreviews,
             published: true,
           },
           currentUser.uid,
@@ -444,7 +463,13 @@ const ChapterEditorPage = () => {
   };
 
   const handleChapterUpdate = (updatedChapter: ChapterData) => {
-    setChapterData(updatedChapter);
+    setChapterData((prevData) => {
+      // Only update if the data has actually changed
+      if (JSON.stringify(prevData) !== JSON.stringify(updatedChapter)) {
+        return updatedChapter;
+      }
+      return prevData;
+    });
   };
 
   // Initialize publishing steps
@@ -759,6 +784,9 @@ const ChapterEditorPage = () => {
             initialTitle={chapterData.title}
             initialHasChoicePoint={chapterData.hasChoicePoint}
             initialChoiceOptions={chapterData.choiceOptions}
+            initialPlotOptionPreviews={
+              chapterData.plotOptionPreviews || ["", ""]
+            }
           />
 
           {/* Writing Tips Section */}
@@ -784,6 +812,14 @@ const ChapterEditorPage = () => {
                 <span>
                   Create choice points to let readers vote on where the story
                   goes next.
+                </span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 mr-2">•</span>
+                <span>
+                  Add preview snippets to give readers a hint about what each
+                  plot option might lead to - readers can view these by clicking
+                  the preview button on each option.
                 </span>
               </li>
               <li className="flex items-start">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import RichTextEditor from "./RichTextEditor";
 
@@ -8,6 +8,7 @@ interface ChapterEditorProps {
   initialTitle?: string;
   initialHasChoicePoint?: boolean;
   initialChoiceOptions?: string[];
+  initialPlotOptionPreviews?: string[];
 }
 
 export interface ChapterData {
@@ -15,6 +16,7 @@ export interface ChapterData {
   content: string;
   hasChoicePoint: boolean;
   choiceOptions: string[];
+  plotOptionPreviews: string[]; // Preview snippets for each plot option
 }
 
 const ChapterEditor: React.FC<ChapterEditorProps> = ({
@@ -23,35 +25,107 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
   initialTitle = "",
   initialHasChoicePoint = false,
   initialChoiceOptions = ["", ""],
+  initialPlotOptionPreviews = ["", ""],
 }) => {
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, []);
+
+  // Track if this is the initial setup to prevent feedback loop
+  const isInitialSetupRef = useRef(true);
+  // Track last values to prevent unnecessary updates
+  const lastInitialValuesRef = useRef({
+    content: initialContent,
+    title: initialTitle,
+    hasChoicePoint: initialHasChoicePoint,
+    choiceOptions: initialChoiceOptions,
+    plotOptionPreviews: initialPlotOptionPreviews,
+  });
+
   const [chapterData, setChapterData] = useState<ChapterData>({
     title: initialTitle,
     content: initialContent,
     hasChoicePoint: true, // Always enabled
     choiceOptions:
       initialChoiceOptions.length >= 2 ? initialChoiceOptions : ["", ""],
+    plotOptionPreviews:
+      initialPlotOptionPreviews.length >= 2
+        ? initialPlotOptionPreviews
+        : ["", ""],
   });
 
-  // Update the chapter data when initialContent changes
+  // Update the chapter data when initialContent changes (but only if it's actually different)
   useEffect(() => {
-    setChapterData((prevState) => ({
-      ...prevState,
-      title: initialTitle,
-      content: initialContent,
-      hasChoicePoint: initialHasChoicePoint,
-      choiceOptions:
-        initialChoiceOptions.length > 0 ? initialChoiceOptions : ["", ""],
-    }));
+    const lastValues = lastInitialValuesRef.current;
+
+    // Check if any of the initial values have actually changed
+    const hasChanged =
+      initialContent !== lastValues.content ||
+      initialTitle !== lastValues.title ||
+      initialHasChoicePoint !== lastValues.hasChoicePoint ||
+      JSON.stringify(initialChoiceOptions) !==
+        JSON.stringify(lastValues.choiceOptions) ||
+      JSON.stringify(initialPlotOptionPreviews) !==
+        JSON.stringify(lastValues.plotOptionPreviews);
+
+    if (hasChanged) {
+      // Update our tracking reference
+      lastInitialValuesRef.current = {
+        content: initialContent,
+        title: initialTitle,
+        hasChoicePoint: initialHasChoicePoint,
+        choiceOptions: initialChoiceOptions,
+        plotOptionPreviews: initialPlotOptionPreviews,
+      };
+
+      // Only update state if values actually changed
+      setChapterData((prevState) => {
+        const newState = {
+          ...prevState,
+          title: initialTitle,
+          content: initialContent,
+          hasChoicePoint: initialHasChoicePoint,
+          choiceOptions:
+            initialChoiceOptions.length > 0 ? initialChoiceOptions : ["", ""],
+          plotOptionPreviews:
+            initialPlotOptionPreviews.length > 0
+              ? initialPlotOptionPreviews
+              : ["", ""],
+        };
+
+        // Only return new state if it's actually different
+        if (JSON.stringify(newState) !== JSON.stringify(prevState)) {
+          return newState;
+        }
+        return prevState;
+      });
+    }
   }, [
     initialContent,
     initialTitle,
     initialHasChoicePoint,
     initialChoiceOptions,
+    initialPlotOptionPreviews,
   ]);
 
-  // Any time chapter data changes, notify the parent component
+  // Notify parent component when chapter data changes (but skip initial setup)
   useEffect(() => {
-    onSave(chapterData);
+    if (isInitialSetupRef.current) {
+      // Skip the first call during initial setup
+      isInitialSetupRef.current = false;
+      return;
+    }
+
+    // Use a small delay to batch multiple rapid changes together
+    const timeoutId = setTimeout(() => {
+      onSave(chapterData);
+    }, 50);
+
+    return () => clearTimeout(timeoutId);
   }, [chapterData, onSave]);
 
   const handleInputChange = (
@@ -72,6 +146,15 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
     const newOptions = [...chapterData.choiceOptions];
     newOptions[index] = e.target.value;
     setChapterData((prev) => ({ ...prev, choiceOptions: newOptions }));
+  };
+
+  const handlePreviewChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+    index: number
+  ) => {
+    const newPreviews = [...chapterData.plotOptionPreviews];
+    newPreviews[index] = e.target.value;
+    setChapterData((prev) => ({ ...prev, plotOptionPreviews: newPreviews }));
   };
 
   return (
@@ -141,22 +224,46 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
                 </span>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-6">
                 {chapterData.choiceOptions.slice(0, 2).map((option, index) => (
-                  <div key={index} className="flex items-center">
-                    <div className="flex-grow">
-                      <div className="flex items-center">
-                        <span className="text-sm font-medium text-ink-700 dark:text-ink-300 w-12">
-                          Plot {index + 1}:
-                        </span>
+                  <div
+                    key={index}
+                    className="bg-white dark:bg-dark-900 p-4 rounded-lg border border-parchment-300 dark:border-dark-600"
+                  >
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-ink-700 dark:text-ink-300 mb-2">
+                          Plot Option {index + 1}{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
                         <input
                           type="text"
                           value={option}
                           onChange={(e) => handleChoiceOptionChange(e, index)}
                           placeholder={`Describe plot option ${index + 1}...`}
-                          className="flex-1 px-3 py-2 border border-parchment-300 dark:border-dark-600 rounded-md bg-white dark:bg-dark-900 text-ink-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full px-3 py-2 border border-parchment-300 dark:border-dark-600 rounded-md bg-white dark:bg-dark-900 text-ink-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                           required
                         />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-ink-700 dark:text-ink-300 mb-2">
+                          Preview Snippet
+                          <span className="text-ink-500 dark:text-ink-400 font-normal ml-1">
+                            (Optional)
+                          </span>
+                        </label>
+                        <textarea
+                          value={chapterData.plotOptionPreviews[index] || ""}
+                          onChange={(e) => handlePreviewChange(e, index)}
+                          placeholder={`Give readers a sneak peek of what happens if they choose this option...`}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-parchment-300 dark:border-dark-600 rounded-md bg-white dark:bg-dark-900 text-ink-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                        />
+                        <p className="text-xs text-ink-500 dark:text-ink-400 mt-1">
+                          A brief hint about what this choice might lead to (1-2
+                          sentences)
+                        </p>
                       </div>
                     </div>
                   </div>

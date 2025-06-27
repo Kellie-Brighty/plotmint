@@ -9,6 +9,7 @@ import {
 import { AuthProvider } from "./utils/AuthContext";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ScrollToTop from "./components/ScrollToTop";
 import LandingPage from "./pages/LandingPage";
 import StoriesPage from "./pages/StoriesPage";
 import StoryPage from "./pages/StoryDetailPage";
@@ -48,8 +49,9 @@ function App() {
 
   return (
     <AuthProvider>
-      <div className="bg-parchment-50 dark:bg-dark-950 min-h-screen">
-        <Router>
+      <Router>
+        <ScrollToTop />
+        <div className="min-h-screen bg-parchment-50 dark:bg-dark-950">
           <Routes>
             {/* Landing page without layout (standalone) */}
             <Route path="/" element={<LandingPage />} />
@@ -139,8 +141,8 @@ function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </Router>
-      </div>
+        </div>
+      </Router>
     </AuthProvider>
   );
 }
