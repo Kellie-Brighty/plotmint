@@ -7,11 +7,11 @@ const PlotTokenDemo: React.FC = () => {
   const { isConnected, address } = useWallet();
   const [ethAmount, setEthAmount] = useState("0.01");
   const [tokenAddress, setTokenAddress] = useState("");
-  
+
   const {
     purchasePlotTokens,
     isLoading: isPurchasing,
-    isConfirmed,
+
     txHash,
     error,
     clearError,
@@ -34,9 +34,9 @@ const PlotTokenDemo: React.FC = () => {
   return (
     <div className="max-w-md mx-auto bg-white dark:bg-dark-900 rounded-lg shadow-sm border border-parchment-200 dark:border-dark-700 p-6">
       <h2 className="text-xl font-display font-bold text-ink-900 dark:text-white mb-4">
-        íº€ PLOT Token Purchase Demo
+        ï¿½ï¿½ï¿½ PLOT Token Purchase Demo
       </h2>
-      
+
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-ink-700 dark:text-ink-300 mb-1">
@@ -81,35 +81,51 @@ const PlotTokenDemo: React.FC = () => {
         {txHash && (
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-900/30">
             <p className="text-sm font-medium">
-              {isPurchasing ? "í´„ Processing..." : "âœ… Transaction Complete"}
+              {isPurchasing ? "ï¿½ï¿½ï¿½ Processing..." : "âœ… Transaction Complete"}
             </p>
             <p className="text-xs mt-1">
-              Tx: <code className="bg-blue-100 dark:bg-blue-900/40 px-1 rounded">{txHash.slice(0, 10)}...{txHash.slice(-8)}</code>
+              Tx:{" "}
+              <code className="bg-blue-100 dark:bg-blue-900/40 px-1 rounded">
+                {txHash.slice(0, 10)}...{txHash.slice(-8)}
+              </code>
             </p>
           </div>
         )}
 
         <button
           onClick={handlePurchase}
-          disabled={!isConnected || !tokenAddress || isPurchasing || parseFloat(ethAmount) <= 0}
+          disabled={
+            !isConnected ||
+            !tokenAddress ||
+            isPurchasing ||
+            parseFloat(ethAmount) <= 0
+          }
           className={`w-full py-2.5 px-3 text-sm font-medium rounded-md transition-colors ${
-            !isConnected || !tokenAddress || isPurchasing || parseFloat(ethAmount) <= 0
+            !isConnected ||
+            !tokenAddress ||
+            isPurchasing ||
+            parseFloat(ethAmount) <= 0
               ? "bg-parchment-200 text-ink-500 dark:bg-dark-700 dark:text-ink-400 cursor-not-allowed"
               : "bg-primary-600 hover:bg-primary-700 text-white dark:bg-primary-500 dark:hover:bg-primary-400"
           }`}
         >
           {isPurchasing
-            ? "í´„ Purchasing..."
+            ? "ï¿½ï¿½ï¿½ Purchasing..."
             : !isConnected
             ? "Connect Wallet"
             : !tokenAddress
             ? "Enter Token Address"
-            : "íº€ Buy PLOT Tokens"}
+            : "ï¿½ï¿½ï¿½ Buy PLOT Tokens"}
         </button>
 
         <div className="text-xs text-ink-500 dark:text-ink-400 space-y-1">
-          <p>í²¡ This demo uses the Zora Coin Trader at: <code className="text-xs">0x17CdB2a31E55669f3eb4185CBc702ad052A12A27</code></p>
-          <p>í´— Transactions are processed on Base Sepolia testnet</p>
+          <p>
+            ï¿½ï¿½ï¿½ This demo uses the Zora Coin Trader at:{" "}
+            <code className="text-xs">
+              0x17CdB2a31E55669f3eb4185CBc702ad052A12A27
+            </code>
+          </p>
+          <p>ï¿½ï¿½ï¿½ Transactions are processed on Base Sepolia testnet</p>
           <p>âš¡ Powered by Zora's advanced DEX infrastructure</p>
         </div>
       </div>

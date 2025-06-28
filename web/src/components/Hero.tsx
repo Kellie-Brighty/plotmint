@@ -37,22 +37,19 @@ const Hero = () => {
             </span>
 
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-bold text-ink-900 dark:text-white mb-6 md:mb-8 leading-tight">
-              Stories that{" "}
+              Trade Your Way to{" "}
               <span className="text-primary-600 dark:text-primary-400 italic">
-                Evolve
+                Perfect
               </span>{" "}
-              with
               <span className="text-secondary-600 dark:text-secondary-400">
-                {" "}
-                Community
+                Stories
               </span>
             </h1>
 
             <p className="text-xl sm:text-2xl md:text-2xl text-ink-700 dark:text-ink-200 mb-8 md:mb-10 font-serif leading-relaxed">
-              PlotMint is a decentralized storytelling platform where each
-              chapter features two plot options that become purchasable tokens.
-              Readers buy tokens to vote and directly influence the story's
-              direction.
+              PlotMint turns every story chapter into a prediction market. Trade
+              plot tokens, speculate on story outcomes, and profit when your
+              predictions become canon. The highest-valued option wins.
             </p>
 
             <div className="flex flex-col sm:flex-row justify-center gap-5 md:gap-6">
@@ -62,7 +59,7 @@ const Hero = () => {
                 size="lg"
                 className="text-lg md:text-xl py-4 sm:py-4 shadow-sm hover:shadow-md"
               >
-                Explore Stories
+                Explore Markets
               </LinkButton>
               <Button
                 onClick={handleStartWriting}
@@ -89,16 +86,16 @@ const Hero = () => {
                 <div className="w-3 h-3 bg-yellow-400 rounded-full mr-2"></div>
                 <div className="w-3 h-3 bg-green-400 rounded-full mr-2"></div>
                 <div className="ml-2 sm:ml-4 text-sm sm:text-base font-medium text-ink-500 dark:text-ink-300">
-                  PlotMint Story Viewer
+                  PlotMint Prediction Market
                 </div>
               </div>
               <div className="hidden sm:flex items-center space-x-2">
                 <span className="text-sm font-medium text-ink-400 dark:text-ink-400">
-                  Chapter 3 of Series
+                  Market Volume: 2.4 ETH
                 </span>
-                <div className="w-6 h-6 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
-                  <span className="text-xs font-medium text-primary-800 dark:text-primary-200">
-                    3
+                <div className="w-6 h-6 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+                  <span className="text-xs font-medium text-green-800 dark:text-green-200">
+                    ↗
                   </span>
                 </div>
               </div>
@@ -109,7 +106,7 @@ const Hero = () => {
                   The Quantum Nexus
                 </h3>
                 <p className="text-ink-500 dark:text-ink-400 text-sm sm:text-base">
-                  Chapter 3: The Decision
+                  Chapter 3 Prediction Market • 24h left to trade
                 </p>
               </div>
               <div className="prose mx-auto max-w-2xl">
@@ -129,16 +126,22 @@ const Hero = () => {
                     <h4 className="font-medium text-ink-900 dark:text-white text-base sm:text-lg">
                       Navigate through the quantum field
                     </h4>
-                    <div className="bg-primary-100 dark:bg-primary-900/50 text-primary-800 dark:text-primary-200 text-sm px-2 py-1 rounded-full flex items-center">
+                    <div className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 text-sm px-2 py-1 rounded-full flex items-center">
                       <svg
                         className="w-3 h-3 mr-1"
                         viewBox="0 0 24 24"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
                       >
-                        <path d="M12 4L4 20H20L12 4Z" fill="currentColor" />
+                        <path
+                          d="M7 14L12 9L17 14"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
-                      <span>48 Tokens</span>
+                      <span>0.032 ETH (+15%)</span>
                     </div>
                   </div>
                 </div>
@@ -147,16 +150,22 @@ const Hero = () => {
                     <h4 className="font-medium text-ink-900 dark:text-white text-base sm:text-lg">
                       Attempt communication with the void entity
                     </h4>
-                    <div className="bg-primary-100 dark:bg-primary-900/50 text-primary-800 dark:text-primary-200 text-sm px-2 py-1 rounded-full flex items-center">
+                    <div className="bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 text-sm px-2 py-1 rounded-full flex items-center">
                       <svg
                         className="w-3 h-3 mr-1"
                         viewBox="0 0 24 24"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
                       >
-                        <path d="M12 4L4 20H20L12 4Z" fill="currentColor" />
+                        <path
+                          d="M17 10L12 15L7 10"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
-                      <span>37 Tokens</span>
+                      <span>0.019 ETH (-8%)</span>
                     </div>
                   </div>
                 </div>
@@ -167,7 +176,7 @@ const Hero = () => {
                   size="lg"
                   className="shadow-sm hover:shadow py-3 px-6 w-full sm:w-auto"
                 >
-                  <span>Buy tokens to vote</span>
+                  <span>Trade predictions</span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-5 w-5 ml-2"

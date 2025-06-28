@@ -9,7 +9,6 @@ import {
 // import { ZoraService } from "../utils/zoraService";
 // import type { PlotVoteStats } from "../utils/zora";
 import PlotVoting from "./PlotVoting";
-import ReadReward from "./ReadReward";
 import ChapterNFTMinter from "./ChapterNFTMinter";
 import { motion } from "framer-motion";
 import type { Address } from "viem";
@@ -33,8 +32,6 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
   creatorId,
   choiceOptions = [],
   hasChoicePoint,
-  readTime = 0,
-  requiredReadTime = 0,
   chapter,
   storyTitle = "",
   chapterTitle = "",
@@ -225,18 +222,7 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* NFT Minting Section - First */}
-      {chapterId && storyTitle && chapterTitle && (
-        <ChapterNFTMinter
-          chapterId={chapterId}
-          storyTitle={storyTitle}
-          chapterTitle={chapterTitle}
-          nftContractAddress={chapter?.nftContractAddress as Address}
-          onMintSuccess={handleNFTMintSuccess}
-        />
-      )}
-
-      {/* Plot Voting Section - Second */}
+      {/* Plot Voting Section - Prioritized First */}
       {hasChoicePoint && choiceOptions.length > 0 && (
         <PlotVoting
           storyId={storyId}
@@ -246,6 +232,17 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
           plotOptionPreviews={chapter?.plotOptionPreviews}
           currentVote={voteStatus.selectedOption}
           onVote={handleVote}
+        />
+      )}
+
+      {/* NFT Minting Section - Second */}
+      {chapterId && storyTitle && chapterTitle && (
+        <ChapterNFTMinter
+          chapterId={chapterId}
+          storyTitle={storyTitle}
+          chapterTitle={chapterTitle}
+          nftContractAddress={chapter?.nftContractAddress as Address}
+          onMintSuccess={handleNFTMintSuccess}
         />
       )}
 
@@ -389,15 +386,6 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
           </button>
         </div>
       </motion.div>
-
-      {/* Read Reward Section */}
-      <ReadReward
-        storyId={storyId}
-        chapterId={chapterId}
-        creatorId={creatorId}
-        readTime={readTime}
-        requiredReadTime={requiredReadTime}
-      />
     </div>
   );
 };
