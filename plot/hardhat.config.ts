@@ -6,10 +6,14 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-// Ensure the private key is configured
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
-if (!PRIVATE_KEY) {
-  throw new Error("Please set your PRIVATE_KEY in a .env file");
+const TEST_PRIVATE_KEY = process.env.TEST_PRIVATE_KEY;
+if (!TEST_PRIVATE_KEY) {
+  throw new Error("Please set your TEST_PRIVATE_KEY in a .env file");
+}
+
+const MAIN_PRIVATE_KEY = process.env.MAIN_PRIVATE_KEY;
+if (!MAIN_PRIVATE_KEY) {
+  throw new Error("Please set your MAIN_PRIVATE_KEY in a .env file");
 }
 
 const config: HardhatUserConfig = {
@@ -32,27 +36,23 @@ const config: HardhatUserConfig = {
     hardhat: {
       chainId: 1337
     },
+    "base": {
+      url: process.env.BASE_RPC_URL || "https://mainnet.base.org",
+      accounts: [MAIN_PRIVATE_KEY],
+      chainId: 8453,
+      gasPrice: "auto"
+    },
     "base-sepolia": {
       url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
-      accounts: [PRIVATE_KEY],
+      accounts: [TEST_PRIVATE_KEY],
       chainId: 84532,
       gasPrice: "auto"
     }
   },
   etherscan: {
     apiKey: {
-      "base-sepolia": process.env.BASESCAN_API_KEY || "" // Optional: for verification
+      "base-sepolia": process.env.BASESCAN_API_KEY || "" 
     },
-    customChains: [
-      {
-        network: "base-sepolia",
-        chainId: 84532,
-        urls: {
-          apiURL: "https://api-sepolia.basescan.org/api",
-          browserURL: "https://sepolia.basescan.org"
-        }
-      }
-    ]
   }
 };
 

@@ -19,7 +19,7 @@ contract ChapterNFT is ERC721, ERC2981, ReentrancyGuard, Ownable {
     uint96 private constant ROYALTY_FEE = 1000; // basis points: 10%
     
     /// @notice Edition minting price
-    uint256 public immutable MINT_PRICE = 0.001 ether;
+    uint256 public immutable MINT_PRICE = 0.0001 ether;
 
     /// @notice Current edition counter
     uint256 private _currentEdition = 0;

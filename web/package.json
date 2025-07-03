@@ -13,7 +13,7 @@
     "@privy-io/react-auth": "^2.14.0",
     "@tanstack/react-query": "^5.80.10",
     "@types/react-router-dom": "^5.3.3",
-    "@zoralabs/coins-sdk": "^0.2.1",
+    "@zoralabs/coins-sdk": "^0.2.8",
     "firebase": "^11.9.0",
     "framer-motion": "^12.18.1",
     "heroicons": "^2.2.0",
@@ -22,12 +22,14 @@
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.6.2",
     "viem": "^2.31.3",
-    "wagmi": "^2.15.6"
+    "wagmi": "^2.15.6",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
+    "@types/winston": "^2.4.4",
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.25.0",

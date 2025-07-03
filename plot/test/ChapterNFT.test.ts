@@ -9,7 +9,7 @@ describe("ChapterNFT", function () {
     let nonOwner: HardhatEthersSigner;
     let buyer: HardhatEthersSigner;
     let addrs: HardhatEthersSigner[];
-    const MINT_PRICE = ethers.parseEther("0.001");
+    const MINT_PRICE = ethers.parseEther("0.0001");
 
     beforeEach(async function () {
         [owner, nonOwner, buyer, ...addrs] = await ethers.getSigners();
