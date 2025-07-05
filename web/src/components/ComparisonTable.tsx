@@ -49,7 +49,7 @@ const ComparisonTable = () => {
       mirror: false,
       readl: false,
       jenkins: false,
-      plotmintNote: "(Base Sepolia network)",
+      plotmintNote: "(Base network)",
     },
     {
       name: "Branching story trees",
@@ -198,7 +198,8 @@ const ComparisonTable = () => {
             Why PlotMint Is Unique
           </h2>
           <p className="text-lg sm:text-xl text-ink-700 dark:text-ink-200 leading-relaxed">
-            See how PlotMint's token-powered storytelling compares to other Web3 publishing platforms
+            See how PlotMint's token-powered storytelling compares to other Web3
+            publishing platforms
           </p>
         </motion.div>
 

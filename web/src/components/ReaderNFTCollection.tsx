@@ -473,7 +473,7 @@ export const ReaderNFTCollection: React.FC<ReaderNFTCollectionProps> = ({
                   Read Chapter →
                 </a>
                 <a
-                  href={`https://sepolia.basescan.org/address/${nft.contractAddress}`}
+                  href={`https://basescan.org/address/${nft.contractAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-ink-500 dark:text-ink-400 hover:text-ink-700 dark:hover:text-ink-200 text-sm transition-colors"

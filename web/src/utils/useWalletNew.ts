@@ -7,9 +7,16 @@ import {
   usePublicClient,
 } from "wagmi";
 import { base } from "wagmi/chains";
-import type { WalletClient, PublicClient } from "viem";
+import type { WalletClient, PublicClient, Address } from "viem";
 
-export const useWallet = () => {
+export interface WalletState {
+  isConnected: boolean;
+  address: Address | null;
+  chainId: number | null;
+  isConnecting: boolean;
+}
+
+export const useWalletNew = () => {
   const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { disconnect } = useDisconnect();
@@ -84,15 +91,20 @@ export const useWallet = () => {
   };
 
   const getPublicClient = (): PublicClient | null => {
-    return publicClient as PublicClient | null;
+    return (publicClient as PublicClient) || null;
   };
 
-  return {
-    // Wallet state
+  // Create wallet state object for compatibility
+  const walletState: WalletState = {
     isConnected,
     address: address || null,
     chainId: chainId || null,
     isConnecting,
+  };
+
+  return {
+    // Wallet state
+    ...walletState,
 
     // Connection methods
     connect: connectWallet,

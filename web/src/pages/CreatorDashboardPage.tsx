@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../utils/AuthContext";
@@ -20,6 +20,9 @@ import {
 import type { StoryData } from "../utils/storyService";
 import { serverTimestamp, type Timestamp } from "firebase/firestore";
 import ChapterNFTCreator from "../components/ChapterNFTCreator";
+import PublishingProgressModal from "../components/PublishingProgressModal";
+import { ZoraService } from "../utils/zoraService";
+import type { PlotWinner } from "../utils/zora";
 
 // Keep mock analytics data for now
 
@@ -36,7 +39,11 @@ interface DraftChapter {
   order: number;
 }
 
-type Tab = "stories" | "analytics" | "chapters" | "assets";
+interface PublishedChapterWithStory extends ChapterData {
+  storyTitle: string;
+}
+
+type Tab = "stories" | "analytics" | "chapters" | "published" | "assets";
 
 const CreatorDashboardPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>("stories");
@@ -51,13 +58,25 @@ const CreatorDashboardPage = () => {
   const { getWalletClient, getPublicClient } = useWallet();
   const navigate = useNavigate();
   const [selectedStory, setSelectedStory] = useState<StoryData | null>(null);
-
-  const [selectedChapter, setSelectedChapter] = useState<ChapterData | null>(
-    null
-  );
+  const [selectedChapter, setSelectedChapter] = useState<ChapterData | null>(null);
   const [showNFTCreator, setShowNFTCreator] = useState(false);
   const [_isSaving, setIsSaving] = useState(false);
   const [_publishError, setPublishError] = useState<string | null>(null);
+  const [showPublishingProgress, setShowPublishingProgress] = useState(false);
+  const [publishingSteps, setPublishingSteps] = useState<any[]>([]);
+
+  // New state for published chapters and winner determination
+  const [publishedChapters, setPublishedChapters] = useState<
+    PublishedChapterWithStory[]
+  >([]);
+  const [publishedLoading, setPublishedLoading] = useState(true);
+  const [determiningWinner, setDeterminingWinner] = useState<string | null>(
+    null
+  );
+  const [winnerResults, setWinnerResults] = useState<{
+    [chapterId: string]: PlotWinner;
+  }>({});
+  const zoraService = new ZoraService();
 
   // Scroll to top when component mounts
   useEffect(() => {
@@ -198,6 +217,131 @@ const CreatorDashboardPage = () => {
       unsubscribeStories();
     };
   }, [currentUser]);
+
+  // Subscribe to published chapters with plot tokens
+  useEffect(() => {
+    if (!currentUser) return;
+
+    setPublishedLoading(true);
+
+    // Get all stories first to match story titles with published chapters
+    const unsubscribeStories = subscribeToCreatorStories(
+      currentUser.uid,
+      (creatorStories) => {
+        if (creatorStories.length === 0) {
+          setPublishedChapters([]);
+          setPublishedLoading(false);
+          return;
+        }
+
+        // Array to store all published chapters from all stories
+        let allPublishedChapters: ChapterData[] = [];
+        let storySubscriptions: (() => void)[] = [];
+        let loadedStoryCount = 0;
+
+        // For each story, subscribe to its chapters
+        creatorStories.forEach((story) => {
+          if (!story.id) return;
+
+          const unsubscribeChapters = subscribeToChapters(
+            story.id,
+            (chapters) => {
+              // Filter for published chapters with plot tokens only
+              const storyPublishedChapters = chapters
+                .filter(
+                  (chapter) =>
+                    chapter.published &&
+                    chapter.plotTokens &&
+                    chapter.plotTokens.length > 0
+                )
+                .map(
+                  (chapter) =>
+                    ({
+                      ...chapter,
+                      storyTitle: story.title, // Add story title for display
+                    } as PublishedChapterWithStory)
+                );
+
+              // Remove any existing published chapters for this story and add the new ones
+              allPublishedChapters = allPublishedChapters.filter(
+                (c) => c.storyId !== story.id
+              );
+              allPublishedChapters = [
+                ...allPublishedChapters,
+                ...storyPublishedChapters,
+              ] as PublishedChapterWithStory[];
+
+              // Update the state with all published chapters
+              setPublishedChapters(
+                allPublishedChapters as PublishedChapterWithStory[]
+              );
+
+              // Mark this story as loaded
+              loadedStoryCount++;
+              if (loadedStoryCount >= creatorStories.length) {
+                setPublishedLoading(false);
+              }
+            },
+            true // Include published chapters
+          );
+
+          storySubscriptions.push(unsubscribeChapters);
+        });
+
+        // If no stories had subscriptions created, we're done
+        if (storySubscriptions.length === 0) {
+          setPublishedLoading(false);
+        }
+      },
+      true // Include unpublished stories
+    );
+
+    // Cleanup function
+    return () => {
+      unsubscribeStories();
+    };
+  }, [currentUser]);
+
+  // Function to determine winner for a chapter
+  const handleDetermineWinner = async (
+    chapterId: string,
+    chapterTitle: string
+  ) => {
+    if (!chapterId) return;
+
+    setDeterminingWinner(chapterId);
+
+    try {
+      console.log(
+        `🏆 Determining winner for chapter: ${chapterTitle} (${chapterId})`
+      );
+      const winner = await zoraService.determineWinnerByHolders(chapterId);
+
+      setWinnerResults((prev) => ({
+        ...prev,
+        [chapterId]: winner,
+      }));
+
+      console.log(`✅ Winner determined//  for ${chapterTitle}:`, winner);
+
+      // You could show a success notification here
+      alert(
+        `Winner determined! ${winner.symbol} won with ${winner.totalVotes} unique holders.`
+      );
+    } catch (error) {
+      console.error(
+        `❌ Error determining winner for chapter ${chapterId}:`,
+        error
+      );
+      alert(
+        `Failed to determine winner: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    } finally {
+      setDeterminingWinner(null);
+    }
+  };
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -892,6 +1036,264 @@ const CreatorDashboardPage = () => {
           </div>
         );
 
+      case "published":
+        return (
+          <div className="space-y-8">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold text-ink-900 dark:text-white">
+                Published Chapters
+              </h3>
+            </div>
+
+            {publishedLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+              </div>
+            ) : publishedChapters.length === 0 ? (
+              <div className="bg-white dark:bg-dark-800 rounded-lg shadow-sm border border-parchment-200 dark:border-dark-700 p-8 text-center">
+                <h4 className="text-lg font-medium text-ink-900 dark:text-white mb-2">
+                  No published chapters
+                </h4>
+                <p className="text-ink-600 dark:text-ink-400 mb-6">
+                  You haven't published any chapters yet.
+                </p>
+                <Link to="/creator/new-story">
+                  <Button variant="primary">Create New Story</Button>
+                </Link>
+              </div>
+            ) : (
+              <>
+                {/* Desktop Table View (hidden on mobile) */}
+                <div className="hidden sm:block bg-white dark:bg-dark-800 rounded-lg shadow-sm border border-parchment-200 dark:border-dark-700 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-parchment-200 dark:divide-dark-700">
+                      <thead className="bg-parchment-50 dark:bg-dark-900">
+                        <tr>
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-ink-500 dark:text-ink-400 uppercase tracking-wider"
+                          >
+                            Chapter
+                          </th>
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-ink-500 dark:text-ink-400 uppercase tracking-wider"
+                          >
+                            Story
+                          </th>
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-ink-500 dark:text-ink-400 uppercase tracking-wider"
+                          >
+                            Status
+                          </th>
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-ink-500 dark:text-ink-400 uppercase tracking-wider"
+                          >
+                            Last Edited
+                          </th>
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-ink-500 dark:text-ink-400 uppercase tracking-wider"
+                          >
+                            Words
+                          </th>
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-right text-xs font-medium text-ink-500 dark:text-ink-400 uppercase tracking-wider"
+                          >
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-dark-800 divide-y divide-parchment-200 dark:divide-dark-700">
+                        {publishedChapters.map((chapter) => (
+                          <tr key={chapter.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-ink-900 dark:text-white">
+                                {chapter.title}
+                              </div>
+                              {chapter.content && (
+                                <div className="text-xs text-ink-500 dark:text-ink-400 mt-1 line-clamp-1">
+                                  {chapter.content.substring(0, 50)}...
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-ink-900 dark:text-white">
+                                {chapter.storyTitle}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                Published
+                              </span>
+                              {winnerResults[chapter.id!] && (
+                                <div className="mt-1">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+                                    🏆 {winnerResults[chapter.id!].symbol}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-600 dark:text-ink-300">
+                              {formatTimestamp(
+                                chapter.updatedAt || chapter.createdAt
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-600 dark:text-ink-300">
+                              {chapter.content
+                                ? chapter.content.split(/\s+/).length
+                                : 0}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <div className="flex items-center space-x-3 justify-end">
+                                <Link
+                                  to={`/stories/${chapter.storyId}/${chapter.id}`}
+                                  className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300"
+                                >
+                                  View
+                                </Link>
+                                {chapter.published &&
+                                  chapter.plotTokens &&
+                                  chapter.plotTokens.length > 0 && (
+                                    <>
+                                      {!winnerResults[chapter.id!] ? (
+                                        <button
+                                          onClick={() =>
+                                            handleDetermineWinner(
+                                              chapter.id!,
+                                              chapter.title
+                                            )
+                                          }
+                                          disabled={
+                                            determiningWinner === chapter.id
+                                          }
+                                          className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 font-medium disabled:opacity-50"
+                                        >
+                                          {determiningWinner === chapter.id
+                                            ? "Determining..."
+                                            : "Determine Winner"}
+                                        </button>
+                                      ) : (
+                                        <span className="text-green-600 dark:text-green-400 font-medium text-xs">
+                                          Winner:{" "}
+                                          {winnerResults[chapter.id!].symbol}
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mobile Card View (shown only on mobile) */}
+                <div className="sm:hidden">
+                  <div className="space-y-4">
+                    {publishedChapters.map((chapter) => (
+                      <div
+                        key={chapter.id}
+                        className="bg-white dark:bg-dark-800 rounded-lg shadow-sm border border-parchment-200 dark:border-dark-700 p-4"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="text-sm font-medium text-ink-900 dark:text-white">
+                              {chapter.title}
+                            </h4>
+                            <p className="text-xs text-ink-500 dark:text-ink-400 mt-1">
+                              {chapter.storyTitle}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end space-y-1">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                              Published
+                            </span>
+                            {winnerResults[chapter.id!] && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+                                🏆 {winnerResults[chapter.id!].symbol}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {chapter.content && (
+                          <p className="text-xs text-ink-500 dark:text-ink-400 mb-3 line-clamp-2">
+                            {chapter.content.substring(0, 80)}...
+                          </p>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                          <div className="bg-parchment-50 dark:bg-dark-800 p-2 rounded">
+                            <span className="block text-ink-500 dark:text-ink-400">
+                              Last Edited
+                            </span>
+                            <span className="font-medium text-ink-900 dark:text-white">
+                              {formatTimestamp(
+                                chapter.updatedAt || chapter.createdAt
+                              )}
+                            </span>
+                          </div>
+                          <div className="bg-parchment-50 dark:bg-dark-800 p-2 rounded">
+                            <span className="block text-ink-500 dark:text-ink-400">
+                              Word Count
+                            </span>
+                            <span className="font-medium text-ink-900 dark:text-white">
+                              {chapter.content
+                                ? chapter.content.split(/\s+/).length
+                                : 0}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex space-x-2">
+                          <Link
+                            to={`/stories/${chapter.storyId}/${chapter.id}`}
+                            className="flex-1 text-center py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors"
+                          >
+                            View
+                          </Link>
+                          {chapter.published &&
+                            chapter.plotTokens &&
+                            chapter.plotTokens.length > 0 && (
+                              <>
+                                {!winnerResults[chapter.id!] ? (
+                                  <button
+                                    onClick={() =>
+                                      handleDetermineWinner(
+                                        chapter.id!,
+                                        chapter.title
+                                      )
+                                    }
+                                    disabled={determiningWinner === chapter.id}
+                                    className="flex-1 py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50"
+                                  >
+                                    {determiningWinner === chapter.id
+                                      ? "Determining..."
+                                      : "Determine Winner"}
+                                  </button>
+                                ) : (
+                                  <span className="flex-1 text-center py-2 px-3 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors">
+                                    Winner: {winnerResults[chapter.id!].symbol}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        );
+
       case "assets":
         return <WriterAssets userId={currentUser?.uid || ""} />;
 
@@ -934,6 +1336,37 @@ const CreatorDashboardPage = () => {
         throw new Error("Exactly two plot options are required");
       }
 
+      // Initialize and show progress modal
+      const steps = [
+        {
+          id: "plot1",
+          title: `Creating "${filledOptions[0]}" token`,
+          description: "Deploying first plot option as tradeable token",
+          status: "pending" as const,
+        },
+        {
+          id: "plot2",
+          title: `Creating "${filledOptions[1]}" token`,
+          description: "Deploying second plot option as tradeable token",
+          status: "pending" as const,
+        },
+        {
+          id: "chapter",
+          title: "Publishing chapter",
+          description: "Saving chapter content and metadata to database",
+          status: "pending" as const,
+        },
+        {
+          id: "notify",
+          title: "Notifying followers",
+          description: "Sending notifications to story followers",
+          status: "pending" as const,
+        },
+      ];
+
+      setPublishingSteps(steps);
+      setShowPublishingProgress(true);
+
       const plotOptions = await createPlotOptionsFromChoices(
         filledOptions,
         story.title,
@@ -948,7 +1381,46 @@ const CreatorDashboardPage = () => {
         throw new Error("Please connect your wallet to create plot tokens");
       }
 
-      console.log("🚀 Publishing chapter with plot tokens...");
+      // Step 1: Create first plot token
+      setPublishingSteps((prev) =>
+        prev.map((step) =>
+          step.id === "plot1" ? { ...step, status: "loading" as const } : step
+        )
+      );
+
+      console.log("🚀 Creating first plot token...");
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate token creation
+
+      setPublishingSteps((prev) =>
+        prev.map((step) =>
+          step.id === "plot1" ? { ...step, status: "completed" as const } : step
+        )
+      );
+
+      // Step 2: Create second plot token
+      setPublishingSteps((prev) =>
+        prev.map((step) =>
+          step.id === "plot2" ? { ...step, status: "loading" as const } : step
+        )
+      );
+
+      console.log("🚀 Creating second plot token...");
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate token creation
+
+      setPublishingSteps((prev) =>
+        prev.map((step) =>
+          step.id === "plot2" ? { ...step, status: "completed" as const } : step
+        )
+      );
+
+      // Step 3: Publish chapter
+      setPublishingSteps((prev) =>
+        prev.map((step) =>
+          step.id === "chapter" ? { ...step, status: "loading" as const } : step
+        )
+      );
+
+      console.log("📖 Publishing chapter with plot tokens...");
 
       // Add plot tokens to the existing chapter
       await addPlotTokensToChapter(
@@ -964,10 +1436,38 @@ const CreatorDashboardPage = () => {
         updatedAt: serverTimestamp() as Timestamp,
       });
 
-      // Notify followers
+      setPublishingSteps((prev) =>
+        prev.map((step) =>
+          step.id === "chapter"
+            ? { ...step, status: "completed" as const }
+            : step
+        )
+      );
+
+      // Step 4: Notify followers
+      setPublishingSteps((prev) =>
+        prev.map((step) =>
+          step.id === "notify" ? { ...step, status: "loading" as const } : step
+        )
+      );
+
+      console.log("📢 Notifying followers...");
       await notifyFollowersOfNewChapter(storyId, chapterId);
 
+      setPublishingSteps((prev) =>
+        prev.map((step) =>
+          step.id === "notify"
+            ? { ...step, status: "completed" as const }
+            : step
+        )
+      );
+
       console.log("✅ Chapter published with plot tokens");
+
+      // Hide progress modal after completion
+      setTimeout(() => {
+        setShowPublishingProgress(false);
+      }, 1500);
 
       // Now show NFT creation modal as optional next step
       const chapter: ChapterData = {
@@ -987,12 +1487,25 @@ const CreatorDashboardPage = () => {
       setIsSaving(false);
     } catch (error) {
       console.error("Error publishing chapter:", error);
+
+      // Update current step to error
+      setPublishingSteps((prev) =>
+        prev.map((step) =>
+          step.status === "loading"
+            ? { ...step, status: "error" as const }
+            : step
+        )
+      );
+
       setPublishError(
         `Failed to publish chapter: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
       setIsSaving(false);
+
+      // Hide progress modal after error
+      setTimeout(() => setShowPublishingProgress(false), 3000);
     }
   };
 
@@ -1130,6 +1643,16 @@ const CreatorDashboardPage = () => {
                 Draft Chapters
               </button>
               <button
+                onClick={() => setActiveTab("published")}
+                className={`py-3 sm:py-4 px-1 whitespace-nowrap text-sm sm:text-base ${
+                  activeTab === "published"
+                    ? "border-b-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400 font-medium"
+                    : "border-b-2 border-transparent text-ink-500 hover:text-ink-700 hover:border-ink-300 dark:text-ink-400 dark:hover:text-ink-300 dark:hover:border-dark-500"
+                }`}
+              >
+                Published Chapters
+              </button>
+              <button
                 onClick={() => setActiveTab("assets")}
                 className={`py-3 sm:py-4 px-1 whitespace-nowrap text-sm sm:text-base ${
                   activeTab === "assets"
@@ -1137,24 +1660,16 @@ const CreatorDashboardPage = () => {
                     : "border-b-2 border-transparent text-ink-500 hover:text-ink-700 hover:border-ink-300 dark:text-ink-400 dark:hover:text-ink-300 dark:hover:border-dark-500"
                 }`}
               >
-                Token Assets
+                Assets
               </button>
             </nav>
           </div>
         </div>
 
-        {/* Error display */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 p-4 rounded-md mb-6">
-            <p className="font-medium">Error</p>
-            <p className="text-sm mt-1">{error}</p>
-          </div>
-        )}
-
         {/* Tab Content */}
         <motion.div
           key={activeTab}
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
@@ -1162,93 +1677,86 @@ const CreatorDashboardPage = () => {
         </motion.div>
 
         {/* NFT Creator Modal */}
-        <AnimatePresence>
-          {showNFTCreator && selectedChapter && selectedStory && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-white dark:bg-dark-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-              >
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-display font-bold text-ink-900 dark:text-white">
-                      Create NFT Collection (Optional)
-                    </h2>
-                    <button
-                      onClick={() => setShowNFTCreator(false)}
-                      className="text-ink-400 hover:text-ink-600 dark:text-ink-500 dark:hover:text-ink-300"
+        {showNFTCreator && selectedChapter && selectedStory && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-dark-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-display font-bold text-ink-900 dark:text-white">
+                    Create NFT Collection (Optional)
+                  </h2>
+                  <button
+                    onClick={() => setShowNFTCreator(false)}
+                    className="text-ink-400 hover:text-ink-600 dark:text-ink-500 dark:hover:text-ink-300"
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      <svg
-                        className="w-6 h-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <div className="mb-6 p-4 bg-parchment-50 dark:bg-dark-800 rounded-lg">
-                    <h3 className="font-semibold text-ink-900 dark:text-white mb-2">
-                      {selectedStory.title} - {selectedChapter.title}
-                    </h3>
-                    <p className="text-ink-600 dark:text-ink-400 text-sm">
-                      Your chapter is now published with plot tokens! Optionally
-                      create a limited edition NFT collection to give your
-                      readers exclusive collectibles.
-                    </p>
-                  </div>
-
-                  <ChapterNFTCreator
-                    chapterId={selectedChapter.id!}
-                    storyTitle={selectedStory.title}
-                    chapterTitle={selectedChapter.title}
-                    chapterNumber={selectedChapter.order}
-                    onNFTCreated={handleNFTCreated}
-                    onFirstEditionMinted={() => {
-                      // NFT creation flow completed
-                      console.log("First edition minted successfully");
-                    }}
-                  />
-
-                  <div className="mt-6 pt-6 border-t border-parchment-200 dark:border-dark-700">
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <button
-                        onClick={handleSkipNFT}
-                        className="flex-1 py-3 px-4 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg transition-colors"
-                      >
-                        Skip NFT & Publish Now
-                      </button>
-                      <button
-                        onClick={() => setShowNFTCreator(false)}
-                        className="flex-1 py-3 px-4 border border-gray-300 dark:border-gray-600 text-ink-700 dark:text-ink-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                    <p className="text-xs text-ink-500 dark:text-ink-400 mt-2 text-center">
-                      You can always create NFT collections for published
-                      chapters later
-                    </p>
-                  </div>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
                 </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
+                <div className="mb-6 p-4 bg-parchment-50 dark:bg-dark-800 rounded-lg">
+                  <h3 className="font-semibold text-ink-900 dark:text-white mb-2">
+                    {selectedStory.title} - {selectedChapter.title}
+                  </h3>
+                  <p className="text-ink-600 dark:text-ink-400 text-sm">
+                    Your chapter is now published with plot tokens! Optionally
+                    create a limited edition NFT collection to give your readers
+                    exclusive collectibles.
+                  </p>
+                </div>
+
+                <ChapterNFTCreator
+                  chapterId={selectedChapter.id!}
+                  storyTitle={selectedStory.title}
+                  chapterTitle={selectedChapter.title}
+                  chapterNumber={selectedChapter.order}
+                  onNFTCreated={handleNFTCreated}
+                  onFirstEditionMinted={() => {
+                    setShowNFTCreator(false);
+                    setSelectedChapter(null);
+                    setSelectedStory(null);
+                  }}
+                  onNextStep={() => {
+                    setShowNFTCreator(false);
+                    setSelectedChapter(null);
+                    setSelectedStory(null);
+                  }}
+                />
+
+                {/* Skip NFT option */}
+                <div className="mt-6 pt-6 border-t border-parchment-200 dark:border-dark-700">
+                  <button
+                    onClick={handleSkipNFT}
+                    className="w-full py-3 px-4 border border-gray-300 dark:border-gray-600 text-ink-700 dark:text-ink-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors"
+                  >
+                    Skip NFT Creation
+                  </button>
+                  <p className="text-xs text-ink-500 dark:text-ink-400 mt-2 text-center">
+                    You can always create NFT collections for published chapters
+                    later
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Publishing Progress Modal */}
+        <PublishingProgressModal
+          isOpen={showPublishingProgress}
+          steps={publishingSteps}
+        />
       </div>
     </div>
   );

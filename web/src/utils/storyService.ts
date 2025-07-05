@@ -18,8 +18,9 @@ import {
   limit,
 } from "firebase/firestore";
 import { ZoraService } from "./zoraService";
-import type { PlotOption } from "./zora";
+import type { PlotOption, PlotVoteStats } from "./zora";
 import type { WalletClient, PublicClient, Address } from "viem";
+import type { ValidMetadataURI } from "@zoralabs/coins-sdk";
 
 // Types for our story and chapter data
 export interface StoryData {
@@ -394,7 +395,7 @@ export const createPlotOptionsFromChoices = async (
     // In production, you'd want to upload to IPFS
     const metadataURI = `data:application/json;base64,${btoa(
       JSON.stringify(metadata)
-    )}`;
+    )}` as ValidMetadataURI;
 
     plotOptions.push({
       name: shortName,
@@ -443,6 +444,23 @@ export const createChapterWithTokens = async (
       ? 1
       : (existingChaptersSnapshot.docs[0].data().order || 0) + 1;
 
+    // First, create the chapter document without plot tokens to get the real ID
+    const newChapterWithoutTokens: Omit<ChapterData, "id"> = {
+      ...chapterData,
+      creatorId: userId,
+      order: nextOrder,
+      plotTokens: [], // Empty initially
+      ...(nftContractAddress && { nftContractAddress }),
+      createdAt: serverTimestamp() as Timestamp,
+      updatedAt: serverTimestamp() as Timestamp,
+    };
+
+    // Add the chapter to Firestore to get the real chapter ID
+    const chapterDocRef = await addDoc(chaptersRef, newChapterWithoutTokens);
+    const realChapterId = chapterDocRef.id;
+
+    console.log(`✅ Chapter created with real ID: ${realChapterId}`);
+
     let plotTokens: Array<{
       name: string;
       symbol: string;
@@ -450,7 +468,7 @@ export const createChapterWithTokens = async (
       metadataURI: string;
     }> = [];
 
-    // Handle plot token creation if plot options are provided
+    // Now handle plot token creation with the real chapter ID
     if (plotOptions && plotOptions.length > 0) {
       if (!walletClient || !publicClient) {
         throw new Error(
@@ -467,21 +485,17 @@ export const createChapterWithTokens = async (
       // Initialize Zora service
       const zoraService = new ZoraService();
 
-      // Create a temporary chapter ID for token creation
-      const tempChapterRef = doc(chaptersRef);
-      const tempChapterId = tempChapterRef.id;
-
       try {
-        // Register plot options as tokens
+        // Register plot options as tokens using the REAL chapter ID
         await zoraService.registerPlotOptions(
-          tempChapterId,
+          realChapterId,
           plotOptions,
           walletClient,
           publicClient
         );
 
         // Get the created tokens information
-        const voteStats = await zoraService.getPlotVoteStats(tempChapterId);
+        const voteStats = await zoraService.getPlotVoteStats(realChapterId);
 
         // Convert to plotTokens format
         plotTokens = plotOptions.map((option) => {
@@ -494,7 +508,15 @@ export const createChapterWithTokens = async (
           };
         });
 
-        console.log(`✅ Created ${plotTokens.length} plot tokens for chapter`);
+        // Update the chapter with the plot tokens
+        await updateDoc(chapterDocRef, {
+          plotTokens,
+          updatedAt: serverTimestamp(),
+        });
+
+        console.log(
+          `✅ Added ${plotTokens.length} plot tokens to chapter ${realChapterId}`
+        );
       } catch (tokenError) {
         console.error("Error creating plot tokens:", tokenError);
         throw new Error(
@@ -504,22 +526,6 @@ export const createChapterWithTokens = async (
         );
       }
     }
-
-    // Create the chapter document with all data
-    const newChapter: Omit<ChapterData, "id"> = {
-      ...chapterData,
-      creatorId: userId,
-      order: nextOrder,
-      plotTokens,
-      ...(nftContractAddress && { nftContractAddress }), // Only include if defined
-      createdAt: serverTimestamp() as Timestamp,
-      updatedAt: serverTimestamp() as Timestamp,
-    };
-
-    // Add the chapter to Firestore
-    const docRef = await addDoc(chaptersRef, newChapter);
-
-    console.log(`✅ Chapter created with ID: ${docRef.id}`);
 
     // Update the story's chapter count and last updated time
     const storyRef = doc(db, "stories", chapterData.storyId);
@@ -535,7 +541,7 @@ export const createChapterWithTokens = async (
       };
 
       // If this chapter is published, mark the story as published too
-      if (newChapter.published) {
+      if (newChapterWithoutTokens.published) {
         updateData.published = true;
         console.log(
           `📖 Marking story "${storyData.title}" as published due to chapter with tokens creation`
@@ -545,7 +551,7 @@ export const createChapterWithTokens = async (
       await updateDoc(storyRef, updateData);
     }
 
-    return docRef.id;
+    return realChapterId;
   } catch (error) {
     console.error("Error creating chapter:", error);
     throw error;
@@ -2703,3 +2709,107 @@ if (typeof window !== "undefined") {
   (window as any).fixStoryDataInconsistencies = fixStoryDataInconsistencies;
   (window as any).markStoriesAsPublished = markStoriesAsPublished;
 }
+
+/**
+ * Utility function to fix chapters that might be missing plotVotes documents
+ * This can be used to repair chapters that were published before the ID fix
+ */
+export const fixChapterPlotVotesDocument = async (
+  chapterId: string
+): Promise<void> => {
+  try {
+    console.log(`🔧 Attempting to fix plot votes for chapter: ${chapterId}`);
+
+    // Get the chapter data
+    const chapterData = await getChapterById(chapterId);
+    if (!chapterData) {
+      throw new Error("Chapter not found");
+    }
+
+    // Check if chapter has plot tokens
+    if (!chapterData.plotTokens || chapterData.plotTokens.length === 0) {
+      console.log(`❌ Chapter ${chapterId} has no plot tokens to fix`);
+      return;
+    }
+
+    // Check if plotVotes document already exists
+    const zoraService = new ZoraService();
+    try {
+      await zoraService.getPlotVoteStats(chapterId);
+      console.log(`✅ Chapter ${chapterId} already has plot votes document`);
+      return;
+    } catch (error) {
+      // Document doesn't exist, we'll create it
+      console.log(
+        `📝 Creating missing plot votes document for chapter ${chapterId}`
+      );
+    }
+
+    // Create the missing plotVotes document
+    const plotVotesRef = doc(db, "plotVotes", `chapter_${chapterId}`);
+    const voteData: PlotVoteStats = {};
+
+    // Initialize vote data for each plot token
+    for (const plotToken of chapterData.plotTokens) {
+      voteData[plotToken.symbol] = {
+        tokenAddress: plotToken.tokenAddress,
+        totalVotes: 0,
+        volumeETH: "0",
+        voters: {},
+      };
+    }
+
+    await setDoc(plotVotesRef, voteData);
+    console.log(
+      `✅ Created plot votes document for chapter ${chapterId} with ${chapterData.plotTokens.length} plot options`
+    );
+  } catch (error) {
+    console.error(
+      `❌ Error fixing plot votes for chapter ${chapterId}:`,
+      error
+    );
+    throw error;
+  }
+};
+
+/**
+ * Batch fix for all chapters that might be missing plotVotes documents
+ */
+export const fixAllChaptersPlotVotes = async (): Promise<void> => {
+  try {
+    console.log("🔧 Starting batch fix for all chapters with plot tokens...");
+
+    const chaptersRef = collection(db, "chapters");
+    const chaptersQuery = query(chaptersRef, where("published", "==", true));
+
+    const querySnapshot = await getDocs(chaptersQuery);
+    let fixedCount = 0;
+    let totalWithTokens = 0;
+
+    for (const chapterDoc of querySnapshot.docs) {
+      const chapterData = chapterDoc.data() as ChapterData;
+      const chapterId = chapterDoc.id;
+
+      // Skip chapters without plot tokens
+      if (!chapterData.plotTokens || chapterData.plotTokens.length === 0) {
+        continue;
+      }
+
+      totalWithTokens++;
+
+      try {
+        await fixChapterPlotVotesDocument(chapterId);
+        fixedCount++;
+      } catch (error) {
+        console.error(`Failed to fix chapter ${chapterId}:`, error);
+      }
+    }
+
+    console.log(
+      `✅ Batch fix completed: ${fixedCount}/${totalWithTokens} chapters with plot tokens fixed`
+    );
+  } catch (error) {
+    console.error("❌ Error in batch fix:", error);
+    throw error;
+  }
+};

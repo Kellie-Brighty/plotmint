@@ -21,7 +21,7 @@ const Footer = () => {
             </p>
             <div className="flex items-center space-x-2">
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300">
-                Built on Base Sepolia
+                Built on Base
               </span>
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-secondary-100 dark:bg-secondary-900/30 text-secondary-800 dark:text-secondary-300">
                 Powered by Zora

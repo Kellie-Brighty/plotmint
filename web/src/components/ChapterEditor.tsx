@@ -286,7 +286,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
                   <p className="text-xs text-amber-800 dark:text-amber-200">
                     <strong>Token Creation:</strong> Both plot options must be
                     filled before publishing. They will become purchasable
-                    tokens on Base Sepolia.
+                    tokens on Base.
                   </p>
                 </div>
               </div>

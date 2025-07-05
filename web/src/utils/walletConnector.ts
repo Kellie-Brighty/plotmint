@@ -1,5 +1,5 @@
 import { createWalletClient, createPublicClient, http, custom } from "viem";
-import { baseSepolia } from "viem/chains";
+import { base } from "viem/chains";
 import type { WalletClient, PublicClient, Address } from "viem";
 
 declare global {
@@ -28,7 +28,7 @@ class WalletConnector {
 
   constructor() {
     this.publicClient = createPublicClient({
-      chain: baseSepolia,
+      chain: base,
       transport: http(),
     }) as any;
 
@@ -57,7 +57,7 @@ class WalletConnector {
       // Recreate wallet client with new account
       if (window.ethereum) {
         this.walletClient = createWalletClient({
-          chain: baseSepolia,
+          chain: base,
           transport: custom(window.ethereum),
           account: accounts[0] as Address,
         });
@@ -132,7 +132,7 @@ class WalletConnector {
 
       // Create wallet client with explicit account
       this.walletClient = createWalletClient({
-        chain: baseSepolia,
+        chain: base,
         transport: custom(window.ethereum),
         account: accounts[0] as Address,
       });
@@ -169,13 +169,13 @@ class WalletConnector {
     });
   }
 
-  public async switchToBaseSepolia(): Promise<void> {
+  public async switchToBaseMainnet(): Promise<void> {
     if (!window.ethereum) return;
 
     try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x14a34" }], // Base Sepolia chainId in hex
+        params: [{ chainId: "0x2105" }], // Base Mainnet chainId in hex (8453)
       });
     } catch (switchError: any) {
       // Chain not added to MetaMask
@@ -184,15 +184,15 @@ class WalletConnector {
           method: "wallet_addEthereumChain",
           params: [
             {
-              chainId: "0x14a34",
-              chainName: "Base Sepolia",
+              chainId: "0x2105",
+              chainName: "Base",
               nativeCurrency: {
                 name: "ETH",
                 symbol: "ETH",
                 decimals: 18,
               },
-              rpcUrls: ["https://sepolia.base.org"],
-              blockExplorerUrls: ["https://sepolia-explorer.base.org"],
+              rpcUrls: ["https://mainnet.base.org"],
+              blockExplorerUrls: ["https://basescan.org"],
             },
           ],
         });
@@ -223,7 +223,7 @@ class WalletConnector {
       if (accounts.length > 0) {
         // Create wallet client with explicit account
         this.walletClient = createWalletClient({
-          chain: baseSepolia,
+          chain: base,
           transport: custom(window.ethereum),
           account: accounts[0] as Address,
         });

@@ -189,7 +189,7 @@ export const COIN_TRADER_ADDRESS: Address = ZORA_COIN_TRADER_ADDRESS;
 
 // Platform configuration
 export const PLATFORM_CONFIG = {
-  chainId: 84532, // Base Sepolia
+  chainId: 8453, // Base Mainnet
   platformReferrer:
     (import.meta.env.VITE_PLATFORM_REFERRER as Address) ||
     ("0x0000000000000000000000000000000000000000" as Address),
@@ -197,7 +197,7 @@ export const PLATFORM_CONFIG = {
 
 // Pool configuration for PLOT tokens
 export const PLOT_TOKEN_CONFIG = {
-  // ETH address (currency0) - Base Sepolia
+  // ETH address (currency0) - Base Mainnet
   WETH_ADDRESS: "0x4200000000000000000000000000000000000006" as Address,
   // Standard pool fee (0.3%)
   DEFAULT_FEE: 3000,

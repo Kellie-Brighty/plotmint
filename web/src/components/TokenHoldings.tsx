@@ -1,142 +1,304 @@
 import React, { useState, useEffect } from "react";
 import { useWallet } from "../utils/useWallet";
-import { useCoinTrader } from "../utils/useCoinTrader";
-import { getUserPurchasedTokens } from "../utils/storyService";
+import { tokenHoldingsService } from "../utils/tokenHoldingsService";
+import { ZoraService } from "../utils/zoraService";
+import type { UserTokenPortfolio, UserTokenHolding } from "../utils/zora";
 import type { Address } from "viem";
-
-interface TokenHolding {
-  chapterId: string;
-  storyTitle: string;
-  chapterTitle: string;
-  plotSymbol: string;
-  plotName: string;
-  tokenAddress: Address;
-  tokenCount: number;
-  purchasePrice: number; // ETH spent
-  currentValue: number; // Current token value in ETH
-  profitLoss: number; // Calculated profit/loss
-  canSell: boolean; // Based on voting window status
-  voteEndTime: Date;
-  isWinningOption?: boolean;
-}
 
 interface TokenHoldingsProps {
   userId: string;
 }
 
-export const TokenHoldings: React.FC<TokenHoldingsProps> = ({ userId }) => {
-  const { address, isConnected } = useWallet();
-  const { getTokenPrice, getTokenBalance } = useCoinTrader();
-  const [holdings, setHoldings] = useState<TokenHolding[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedHolding, setSelectedHolding] = useState<TokenHolding | null>(
-    null
-  );
+interface SellModalProps {
+  holding: UserTokenHolding;
+  isOpen: boolean;
+  onClose: () => void;
+  onSellComplete: () => void;
+}
 
-  useEffect(() => {
-    if (userId && isConnected && address) {
-      fetchTokenHoldings();
+const SellModal: React.FC<SellModalProps> = ({
+  holding,
+  isOpen,
+  onClose,
+  onSellComplete,
+}) => {
+  const { getWalletClient, getPublicClient, address } = useWallet();
+  const [sellAmount, setSellAmount] = useState("");
+  const [selling, setSelling] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const zoraService = new ZoraService();
+
+  const maxTokens = parseInt(holding.balance);
+
+  const handleSell = async () => {
+    if (!address || !sellAmount) return;
+
+    const tokensToSell = parseInt(sellAmount);
+    if (tokensToSell <= 0 || tokensToSell > maxTokens) {
+      setError("Invalid sell amount");
+      return;
     }
-  }, [userId, isConnected, address]);
 
-  const fetchTokenHoldings = async () => {
-    setLoading(true);
+    setSelling(true);
+    setError(null);
+
     try {
-      if (!address) return;
+      const walletClient = getWalletClient();
+      const publicClient = getPublicClient();
 
-      // Get user's token purchases from Firebase
-      const purchaseHistory = await getUserPurchasedTokens(userId);
-      const holdingsData: TokenHolding[] = [];
-
-      for (const purchase of purchaseHistory) {
-        try {
-          // Get current token balance from contract
-          const currentBalance = await getTokenBalance(
-            purchase.tokenAddress as Address,
-            address
-          );
-
-          if (currentBalance > 0) {
-            // Get current token price
-            const currentPrice = await getTokenPrice(
-              purchase.tokenAddress as Address
-            );
-
-            // Calculate current value and P&L
-            const currentValue = (currentBalance * currentPrice) / 100; // Convert from wei
-            const profitLoss = currentValue - purchase.totalSpent;
-
-            holdingsData.push({
-              chapterId: purchase.chapterId,
-              storyTitle: purchase.storyTitle,
-              chapterTitle: purchase.chapterTitle,
-              plotSymbol: purchase.plotSymbol,
-              plotName: purchase.plotName,
-              tokenAddress: purchase.tokenAddress as Address,
-              tokenCount: currentBalance,
-              purchasePrice: purchase.totalSpent,
-              currentValue,
-              profitLoss,
-              canSell: purchase.voteEndTime
-                ? new Date() > new Date(purchase.voteEndTime)
-                : false,
-              voteEndTime: purchase.voteEndTime
-                ? new Date(purchase.voteEndTime)
-                : new Date(),
-              isWinningOption: purchase.isWinningOption,
-            });
-          }
-        } catch (error) {
-          console.error(
-            `Error fetching data for token ${purchase.plotSymbol}:`,
-            error
-          );
-        }
+      if (!walletClient || !publicClient) {
+        throw new Error("Wallet not connected properly");
       }
 
-      setHoldings(holdingsData);
+      // Convert tokens to wei (assuming 1 token = 1e18 wei)
+      const tokenAmountWei =
+        BigInt(tokensToSell) * BigInt("1000000000000000000");
+
+      // Create sell trade parameters
+      const sellParams = zoraService.createSellTradeParams(
+        holding.tokenAddress as Address,
+        tokenAmountWei,
+        address,
+        0.05 // 5% slippage
+      );
+
+      console.log(`🔄 Selling ${tokensToSell} ${holding.symbol} tokens...`);
+
+      // Execute the sell trade
+      const receipt = await zoraService.tradeCoin(
+        sellParams,
+        walletClient,
+        { address } as any,
+        publicClient
+      );
+
+      console.log("✅ Sell transaction successful:", receipt.transactionHash);
+
+      // Close modal and refresh portfolio
+      onClose();
+      onSellComplete();
     } catch (error) {
-      console.error("Error fetching token holdings:", error);
+      console.error("❌ Sell transaction failed:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to sell tokens"
+      );
+    } finally {
+      setSelling(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-dark-900 rounded-xl max-w-md w-full p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-ink-900 dark:text-white">
+            Sell {holding.symbol}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-ink-400 hover:text-ink-600 dark:text-ink-500 dark:hover:text-ink-300"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div className="mb-4 p-3 bg-parchment-50 dark:bg-dark-800 rounded-lg">
+          <div className="text-sm text-ink-600 dark:text-ink-400 mb-1">
+            Token Details
+          </div>
+          <div className="font-medium text-ink-900 dark:text-white">
+            {holding.name}
+          </div>
+          <div className="text-sm text-ink-600 dark:text-ink-400">
+            Story: {holding.storyTitle} - {holding.chapterTitle}
+          </div>
+          <div className="text-sm text-ink-600 dark:text-ink-400">
+            Your Balance: {holding.balance} tokens
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-ink-700 dark:text-ink-300 mb-2">
+            Amount to Sell
+          </label>
+          <div className="relative">
+            <input
+              type="number"
+              min="1"
+              max={maxTokens}
+              value={sellAmount}
+              onChange={(e) => setSellAmount(e.target.value)}
+              placeholder="Enter amount"
+              className="w-full px-3 py-2 border border-parchment-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-800 text-ink-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+            <button
+              onClick={() => setSellAmount(maxTokens.toString())}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+            >
+              Max
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-300 text-sm rounded-lg">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            disabled={selling}
+            className="flex-1 px-4 py-2 border border-parchment-300 dark:border-dark-600 text-ink-700 dark:text-ink-300 font-medium rounded-lg hover:bg-parchment-50 dark:hover:bg-dark-800 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSell}
+            disabled={
+              selling ||
+              !sellAmount ||
+              parseInt(sellAmount) <= 0 ||
+              parseInt(sellAmount) > maxTokens
+            }
+            className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+          >
+            {selling ? "Selling..." : "Sell Tokens"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const TokenHoldings: React.FC<TokenHoldingsProps> = ({  }) => {
+  const { address, isConnected } = useWallet();
+  const [portfolio, setPortfolio] = useState<UserTokenPortfolio | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sellModalOpen, setSellModalOpen] = useState(false);
+  const [selectedHolding, setSelectedHolding] = useState<UserTokenHolding | null>(null);
+
+  useEffect(() => {
+    if (isConnected && address) {
+      fetchTokenPortfolio();
+    } else {
+      setPortfolio(null);
+      setLoading(false);
+    }
+  }, [isConnected, address]);
+
+  const fetchTokenPortfolio = async () => {
+    if (!address) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log("🔍 Fetching token portfolio for address:", address);
+      console.log("🔍 Address details:", {
+        address: address,
+        addressType: typeof address,
+        addressLength: address.length,
+        addressLowercase: address.toLowerCase(),
+        addressUppercase: address.toUpperCase()
+      });
+      
+      const userPortfolio = await tokenHoldingsService.getUserTokenPortfolio(address);
+      setPortfolio(userPortfolio);
+      console.log("✅ Portfolio loaded:", userPortfolio);
+    } catch (error) {
+      console.error("❌ Error fetching token portfolio:", error);
+      setError(error instanceof Error ? error.message : "Failed to load token portfolio");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSellTokens = async (holding: TokenHolding) => {
-    if (!holding.canSell) return;
+  const handleRefresh = async () => {
+    if (!address) return;
 
+    setRefreshing(true);
     try {
-      // TODO: Implement token selling via ZoraService
-      console.log("Selling tokens for:", holding.plotSymbol);
-      setSelectedHolding(null);
-      // Refresh holdings after sale
-      await fetchTokenHoldings();
+      const userPortfolio = await tokenHoldingsService.getUserTokenPortfolio(
+        address
+      );
+      setPortfolio(userPortfolio);
     } catch (error) {
-      console.error("Error selling tokens:", error);
+      console.error("❌ Error refreshing portfolio:", error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
-  const formatTimeRemaining = (endTime: Date) => {
-    const now = new Date();
-    const diff = endTime.getTime() - now.getTime();
-
-    if (diff <= 0) return "Voting ended";
-
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    return `${hours}h ${minutes}m remaining`;
+  const handleSellClick = (holding: UserTokenHolding) => {
+    setSelectedHolding(holding);
+    setSellModalOpen(true);
   };
 
-  const formatETH = (value: number) => {
+  const handleSellComplete = () => {
+    // Refresh portfolio after successful sell
+    handleRefresh();
+  };
+
+  const formatETH = (ethString: string) => {
+    const value = parseFloat(ethString);
+    if (value === 0) return "0 ETH";
+    if (value < 0.0001) return "< 0.0001 ETH";
     return `${value.toFixed(4)} ETH`;
+  };
+
+  const formatPercentage = (percentage: number) => {
+    const sign = percentage >= 0 ? "+" : "";
+    return `${sign}${percentage.toFixed(2)}%`;
+  };
+
+  const getPercentageColor = (percentage: number) => {
+    if (percentage > 0) return "text-green-600 dark:text-green-400";
+    if (percentage < 0) return "text-red-600 dark:text-red-400";
+    return "text-ink-600 dark:text-ink-400";
   };
 
   if (!isConnected) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-600 dark:text-gray-400">
-          Connect your wallet to view token holdings
+      <div className="bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700 p-8 text-center">
+        <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg
+            className="w-8 h-8 text-primary-600 dark:text-primary-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium text-ink-900 dark:text-white mb-2">
+          Connect Your Wallet
+        </h3>
+        <p className="text-ink-600 dark:text-ink-400">
+          Connect your wallet to view your plot token holdings and portfolio
+          performance.
         </p>
       </div>
     );
@@ -144,180 +306,272 @@ export const TokenHoldings: React.FC<TokenHoldingsProps> = ({ userId }) => {
 
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Loading token holdings...
+      <div className="bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700 p-8 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600 mx-auto mb-4"></div>
+        <p className="text-ink-600 dark:text-ink-400">
+          Loading your token portfolio...
         </p>
       </div>
     );
   }
 
-  if (holdings.length === 0) {
+  if (error) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-600 dark:text-gray-400">
-          No token holdings found. Start voting on plot options to build your
-          portfolio!
+      <div className="bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700 p-8 text-center">
+        <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg
+            className="w-8 h-8 text-red-600 dark:text-red-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium text-ink-900 dark:text-white mb-2">
+          Error Loading Portfolio
+        </h3>
+        <p className="text-ink-600 dark:text-ink-400 mb-4">{error}</p>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+        >
+          {refreshing ? "Retrying..." : "Try Again"}
+        </button>
+      </div>
+    );
+  }
+
+  if (!portfolio || portfolio.holdings.length === 0) {
+    return (
+      <div className="bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700 p-8 text-center">
+        <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg
+            className="w-8 h-8 text-primary-600 dark:text-primary-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+            />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium text-ink-900 dark:text-white mb-2">
+          No Token Holdings Found
+        </h3>
+        <p className="text-ink-600 dark:text-ink-400">
+          Start voting on plot options to build your portfolio! Each vote
+          purchases tokens that represent your choice.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Your Token Holdings</h3>
-        <button
-          onClick={fetchTokenHoldings}
-          className="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-        >
-          Refresh
-        </button>
-      </div>
-
-      <div className="grid gap-4">
-        {holdings.map((holding, _index) => (
-          <div
-            key={`${holding.chapterId}-${holding.plotSymbol}`}
-            className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4"
+    <div className="space-y-6">
+      {/* Portfolio Summary */}
+      <div className="bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700 p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-semibold text-ink-900 dark:text-white">
+            Portfolio Overview
+          </h3>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="px-3 py-1.5 text-sm bg-parchment-100 dark:bg-dark-800 border border-parchment-200 dark:border-dark-700 text-ink-700 dark:text-ink-300 rounded-lg hover:bg-parchment-200 dark:hover:bg-dark-700 transition-colors disabled:opacity-50"
           >
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <h4 className="font-medium text-gray-900 dark:text-white">
-                  {holding.storyTitle}
-                </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {holding.chapterTitle}
-                </p>
-              </div>
-              <div className="text-right">
-                <div
-                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                    holding.canSell
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                  }`}
-                >
-                  {holding.canSell
-                    ? "Can Sell"
-                    : formatTimeRemaining(holding.voteEndTime)}
-                </div>
-              </div>
-            </div>
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Plot Option
-                </p>
-                <p className="font-medium">{holding.plotName}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {holding.plotSymbol}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Tokens Owned
-                </p>
-                <p className="font-medium">{holding.tokenCount}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Purchase Price
-                </p>
-                <p className="font-medium">
-                  {formatETH(holding.purchasePrice)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Current Value
-                </p>
-                <p className="font-medium">{formatETH(holding.currentValue)}</p>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  P&L:
-                </span>
-                <span
-                  className={`font-medium ${
-                    holding.profitLoss >= 0
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
-                >
-                  {holding.profitLoss >= 0 ? "+" : ""}
-                  {formatETH(holding.profitLoss)}
-                </span>
-                {holding.isWinningOption === true && (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                    Winner
-                  </span>
-                )}
-              </div>
-
-              {holding.canSell && (
-                <button
-                  onClick={() => setSelectedHolding(holding)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Sell Tokens
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Sell Confirmation Modal */}
-      {selectedHolding && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">Sell Tokens</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Are you sure you want to sell {selectedHolding.tokenCount}{" "}
-              {selectedHolding.plotSymbol} tokens?
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="text-center p-4 bg-parchment-50 dark:bg-dark-800 rounded-lg">
+            <p className="text-sm text-ink-600 dark:text-ink-400 mb-1">
+              Total Value
             </p>
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 mb-4">
-              <div className="flex justify-between text-sm">
-                <span>Current Value:</span>
-                <span>{formatETH(selectedHolding.currentValue)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Estimated P&L:</span>
-                <span
-                  className={
-                    selectedHolding.profitLoss >= 0
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }
-                >
-                  {selectedHolding.profitLoss >= 0 ? "+" : ""}
-                  {formatETH(selectedHolding.profitLoss)}
-                </span>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setSelectedHolding(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleSellTokens(selectedHolding)}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Sell Tokens
-              </button>
-            </div>
+            <p className="text-xl font-bold text-ink-900 dark:text-white">
+              {formatETH(portfolio.totalValue)}
+            </p>
+          </div>
+
+          <div className="text-center p-4 bg-parchment-50 dark:bg-dark-800 rounded-lg">
+            <p className="text-sm text-ink-600 dark:text-ink-400 mb-1">
+              Total Invested
+            </p>
+            <p className="text-xl font-bold text-ink-900 dark:text-white">
+              {formatETH(portfolio.totalInvested)}
+            </p>
+          </div>
+
+          <div className="text-center p-4 bg-parchment-50 dark:bg-dark-800 rounded-lg">
+            <p className="text-sm text-ink-600 dark:text-ink-400 mb-1">
+              Profit/Loss
+            </p>
+            <p
+              className={`text-xl font-bold ${getPercentageColor(
+                portfolio.totalProfitLossPercentage
+              )}`}
+            >
+              {formatETH(portfolio.totalProfitLoss)}
+            </p>
+          </div>
+
+          <div className="text-center p-4 bg-parchment-50 dark:bg-dark-800 rounded-lg">
+            <p className="text-sm text-ink-600 dark:text-ink-400 mb-1">
+              Total Holdings
+            </p>
+            <p className="text-xl font-bold text-ink-900 dark:text-white">
+              {portfolio.holdings.length}
+            </p>
           </div>
         </div>
+
+        {portfolio.totalProfitLossPercentage !== 0 && (
+          <div className="mt-4 text-center">
+            <span
+              className={`text-sm font-medium ${getPercentageColor(
+                portfolio.totalProfitLossPercentage
+              )}`}
+            >
+              {formatPercentage(portfolio.totalProfitLossPercentage)} overall
+              return
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Token Holdings List */}
+      <div className="bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-parchment-200 dark:border-dark-700 overflow-hidden">
+        <div className="p-6 border-b border-parchment-200 dark:border-dark-700">
+          <h3 className="text-lg font-semibold text-ink-900 dark:text-white">
+            Your Token Holdings
+          </h3>
+          <p className="text-sm text-ink-600 dark:text-ink-400 mt-1">
+            Tokens acquired through plot voting
+          </p>
+        </div>
+
+        <div className="divide-y divide-parchment-200 dark:divide-dark-700">
+          {portfolio.holdings.map(
+            (holding: UserTokenHolding, index: number) => (
+              <div
+                key={`${holding.chapterId}-${holding.symbol}-${index}`}
+                className="p-6"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <div>
+                        <h4 className="font-medium text-ink-900 dark:text-white">
+                          {holding.name}
+                        </h4>
+                        <p className="text-sm text-ink-600 dark:text-ink-400">
+                          {holding.symbol}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-sm text-ink-600 dark:text-ink-400 space-y-1">
+                      <p>
+                        <span className="font-medium">Story:</span>{" "}
+                        {holding.storyTitle}
+                      </p>
+                      <p>
+                        <span className="font-medium">Chapter:</span>{" "}
+                        {holding.chapterTitle}
+                      </p>
+                      <p>
+                        <span className="font-medium">Balance:</span>{" "}
+                        {holding.balanceFormatted} tokens
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 sm:mt-0 sm:ml-6 flex flex-col sm:items-end space-y-2">
+                    <div className="text-right">
+                      <p className="text-sm text-ink-600 dark:text-ink-400">
+                        Purchase Price
+                      </p>
+                      <p className="font-medium text-ink-900 dark:text-white">
+                        {formatETH(holding.purchasePrice)}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-sm text-ink-600 dark:text-ink-400">
+                        Current Value
+                      </p>
+                      <p className="font-medium text-ink-900 dark:text-white">
+                        {formatETH(holding.currentValue)}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-sm text-ink-600 dark:text-ink-400">
+                        Profit/Loss
+                      </p>
+                      <div className="flex flex-col sm:items-end">
+                        <p
+                          className={`font-medium ${getPercentageColor(
+                            holding.profitLossPercentage
+                          )}`}
+                        >
+                          {formatETH(holding.profitLoss)}
+                        </p>
+                        <p
+                          className={`text-sm ${getPercentageColor(
+                            holding.profitLossPercentage
+                          )}`}
+                        >
+                          {formatPercentage(holding.profitLossPercentage)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Sell Button */}
+                    <div className="pt-2">
+                      <button
+                        onClick={() => handleSellClick(holding)}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors text-sm"
+                      >
+                        Sell Tokens
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      </div>
+
+      {/* Sell Modal */}
+      {selectedHolding && (
+        <SellModal
+          holding={selectedHolding}
+          isOpen={sellModalOpen}
+          onClose={() => {
+            setSellModalOpen(false);
+            setSelectedHolding(null);
+          }}
+          onSellComplete={handleSellComplete}
+        />
       )}
+
+      {/* Last Updated */}
+      <div className="text-center text-xs text-ink-500 dark:text-ink-400">
+        Last updated: {new Date(portfolio.lastUpdated).toLocaleString()}
+      </div>
     </div>
   );
 };

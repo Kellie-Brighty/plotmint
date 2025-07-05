@@ -706,7 +706,7 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
 
                     <div className="flex space-x-2">
                       <a
-                        href={`https://sepolia.basescan.org/address/${collection.contractAddress}`}
+                        href={`https://basescan.org/address/${collection.contractAddress}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -714,7 +714,7 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
                         View Contract
                       </a>
                       <a
-                        href={`https://testnets.opensea.io/assets/base-sepolia/${collection.contractAddress}`}
+                        href={`https://opensea.io/assets/base/${collection.contractAddress}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

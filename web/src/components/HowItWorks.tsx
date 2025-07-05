@@ -15,7 +15,7 @@ const HowItWorks = () => {
       number: "02",
       title: "Create Two Plot Options",
       description:
-        "Every chapter must include exactly two plot options that readers can vote on. These options automatically become purchasable tokens on Base Sepolia.",
+        "Every chapter must include exactly two plot options that readers can vote on. These options automatically become purchasable tokens on Base.",
       colorClass:
         "bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300",
       dotColorClass: "bg-primary-600 dark:bg-primary-500",

@@ -106,3 +106,11 @@ This behavior is implemented globally and doesn't require individual components 
 - React Router
 - Framer Motion
 - Tailwind CSS
+
+
+
+Yes let's make this happen. Let's allow readers to be able to see percentage difference of the votes on the two plot options only after they have successfully voted for their own options. 
+
+Then do all other possibilities.
+
+Do all gracefully without breaking the app

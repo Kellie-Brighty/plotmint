@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { encodePacked, keccak256, decodeEventLog } from "viem";
-import { baseSepolia } from "viem/chains";
+import { base } from "viem/chains";
 import type { Address } from "viem";
 import { useWallet } from "./useWallet";
 import {
@@ -33,12 +33,21 @@ export function useChapterNFT() {
   const createChapterNFT = async ({
     chapterId,
     storyTitle,
-
     chapterNumber,
   }: CreateChapterNFTParams) => {
     try {
       if (!isConnected || !address) {
         throw new Error("Wallet not connected");
+      }
+
+      // Check if contracts are deployed on mainnet
+      if (
+        CHAPTER_NFT_FACTORY_ADDRESS ===
+        "0x0000000000000000000000000000000000000000"
+      ) {
+        throw new Error(
+          "Chapter NFT contracts are not yet deployed to Base Mainnet. Please contact the development team to deploy the contracts first."
+        );
       }
 
       const walletClient = getWalletClient();
@@ -74,7 +83,7 @@ export function useChapterNFT() {
         abi: CHAPTER_NFT_FACTORY_ABI,
         functionName: "createChapterNFT",
         args: [chapterIdNumber, name, symbol],
-        chain: baseSepolia,
+        chain: base, // Changed from baseSepolia to base
         account: address,
       });
 
@@ -156,7 +165,7 @@ export function useChapterNFT() {
         abi: CHAPTER_NFT_ABI,
         functionName: "mintFirstEdition",
         args: [],
-        chain: baseSepolia,
+        chain: base, // Changed from baseSepolia to base
         account: address,
       });
 
@@ -223,7 +232,7 @@ export function useChapterNFT() {
         functionName: "mintEdition",
         args: [],
         value: mintPrice as bigint,
-        chain: baseSepolia,
+        chain: base, // Changed from baseSepolia to base
         account: address,
       });
 
@@ -442,7 +451,7 @@ export function useChapterNFT() {
         abi: CHAPTER_NFT_ABI,
         functionName: "transferFrom",
         args: [address, toAddress, BigInt(tokenId)],
-        chain: baseSepolia,
+        chain: base,
         account: address,
       });
 
@@ -529,7 +538,7 @@ export function useChapterNFT() {
         abi: CHAPTER_NFT_ABI,
         functionName: "listForSale",
         args: [BigInt(tokenId), priceInWei],
-        chain: baseSepolia,
+        chain: base,
         account: address,
       });
 
@@ -582,7 +591,7 @@ export function useChapterNFT() {
         abi: CHAPTER_NFT_ABI,
         functionName: "cancelListing",
         args: [BigInt(tokenId)],
-        chain: baseSepolia,
+        chain: base,
         account: address,
       });
 
@@ -641,7 +650,7 @@ export function useChapterNFT() {
         functionName: "buyListed",
         args: [BigInt(tokenId)],
         value: BigInt(listing.price),
-        chain: baseSepolia,
+        chain: base,
         account: address,
       });
 

@@ -236,13 +236,14 @@ export const CHAPTER_NFT_ABI = [
   },
 ] as const;
 
-// Deployed contract addresses
+// Deployed contract addresses on Base Mainnet
 export const CHAPTER_NFT_FACTORY_ADDRESS: Address =
-  "0x19a62632D810d5923E87E374443EeC2486f85d96";
+  (import.meta.env.VITE_CHAPTER_NFT_FACTORY_ADDRESS as Address) ||
+  "0xa78285D8665a31D984cBe28C41052D80bB3A54F1"; // ChapterNFTFactory on Base Mainnet
 
 // Configuration
 export const NFT_CONFIG = {
-  chainId: 84532, // Base Sepolia
+  chainId: 8453, // Base Mainnet
   maxEditions: 100,
   mintPrice: "0.001", // ETH
 };

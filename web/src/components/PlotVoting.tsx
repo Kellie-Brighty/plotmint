@@ -8,10 +8,29 @@ import {
   subscribeToVoteCounts,
 } from "../utils/storyService";
 import { ZoraService } from "../utils/zoraService";
-import type { Address } from "viem";
-import { createPublicClient, http, parseAbi } from "viem";
-import { baseSepolia } from "viem/chains";
+import { parseEther, type Address } from "viem";
+
 import { motion } from "framer-motion";
+
+// Utility function to safely log objects that may contain BigInt values
+const safeLog = (message: string, data?: any) => {
+  if (data) {
+    try {
+      // Convert BigInt values to strings for safe logging
+      const safeData = JSON.parse(
+        JSON.stringify(data, (_key, value) =>
+          typeof value === "bigint" ? value.toString() : value
+        )
+      );
+      console.log(message, safeData);
+    } catch {
+      // If JSON.stringify fails, just log the message
+      console.log(message, "[Complex object with BigInt values]");
+    }
+  } else {
+    console.log(message);
+  }
+};
 
 interface PlotOption {
   name: string;
@@ -44,18 +63,20 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
   onVote,
 }) => {
   const { currentUser } = useAuth();
-  const { isConnected, address } = useWallet();
+  const { isConnected, address, getWalletClient, getPublicClient } =
+    useWallet();
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
-  const [selectionTimestamp, setSelectionTimestamp] = useState<number | null>(
-    null
-  );
-  const [isVerifyingPurchase, setIsVerifyingPurchase] = useState(false);
-  const [verificationError, setVerificationError] = useState<string | null>(
-    null
-  );
-  const [purchaseVerified, setPurchaseVerified] = useState(false);
+
+  // New state for direct token purchasing
+  const [ethAmount, setEthAmount] = useState<string>("0.001"); // Default amount
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [purchaseSuccess, setPurchaseSuccess] = useState(false);
+  const [estimatedTokens, setEstimatedTokens] = useState<string>("0");
+
+  // Keep existing state for previews and vote results
   const [previewModal, setPreviewModal] = useState<{
     isOpen: boolean;
     optionIndex: number | null;
@@ -77,17 +98,9 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
     percentages: [],
   });
 
-  // Create public client for blockchain queries
-  const publicClient = createPublicClient({
-    chain: baseSepolia,
-    transport: http(),
-  });
 
-  // ERC-20 ABI for Transfer events
-  const erc20Abi = parseAbi([
-    "event Transfer(address indexed from, address indexed to, uint256 value)",
-    "function balanceOf(address owner) view returns (uint256)",
-  ]);
+
+
 
   // Check if the current user can vote
   const userCanVote = canVoteOnPlot(creatorId, currentUser?.uid) && isConnected;
@@ -158,144 +171,85 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
   const handleVoteSelect = (optionIndex: number) => {
     if (!userCanVote || !isVotingActive || hasVoted) return;
     setSelectedOption(optionIndex);
-
-    // Record selection timestamp for temporal verification
-    setSelectionTimestamp(Date.now());
-    setPurchaseVerified(false);
-    setVerificationError(null);
-
-    console.log("📋 Plot option selected at:", new Date().toISOString());
+    setPurchaseSuccess(false);
+    setPurchaseError(null);
+    console.log("📋 Plot option selected:", plotOptions[optionIndex].name);
   };
 
-  // Verify that user purchased tokens after selecting plot option
-  const verifyRecentPurchase = async () => {
-    if (!address || !selectionTimestamp || selectedOption === null) {
-      setVerificationError("Missing required information for verification");
-      return false;
+  // New function to handle direct token purchase
+  const handleDirectTokenPurchase = async () => {
+    if (!address || selectedOption === null || !chapterId) {
+      setPurchaseError("Missing required information for purchase");
+      return;
     }
 
     const selectedPlotOption = plotOptions[selectedOption];
     if (!selectedPlotOption?.tokenAddress) {
-      setVerificationError("Token address not available");
-      return false;
+      setPurchaseError("Token address not available");
+      return;
     }
 
     try {
-      setIsVerifyingPurchase(true);
-      setVerificationError(null);
+      setIsPurchasing(true);
+      setPurchaseError(null);
 
-      console.log("🔍 Verifying recent token purchase:", {
-        userAddress: address,
+      safeLog("🛒 Starting direct token purchase:", {
         tokenAddress: selectedPlotOption.tokenAddress,
-        selectionTime: new Date(selectionTimestamp).toISOString(),
+        ethAmount,
+        userAddress: address,
       });
 
-      // Get recent Transfer events to user's address
-      const currentBlock = await publicClient.getBlockNumber();
-      const fromBlock = currentBlock - BigInt(1000); // Look back ~1000 blocks (approx 30 min on Base)
+      // Get wallet clients
+      const walletClient = getWalletClient();
+      const publicClient = getPublicClient();
 
-      const logs = await publicClient.getLogs({
-        address: selectedPlotOption.tokenAddress as Address,
-        event: erc20Abi.find(
-          (item) => item.type === "event" && item.name === "Transfer"
-        )!,
-        args: {
-          to: address,
-        },
-        fromBlock,
-        toBlock: currentBlock,
-      });
-
-      console.log(`📝 Found ${logs.length} Transfer events to user address`);
-
-      // Check if any transfers happened after selection timestamp
-      for (const log of logs) {
-        const block = await publicClient.getBlock({
-          blockNumber: log.blockNumber,
-        });
-        const transferTime = Number(block.timestamp) * 1000; // Convert to milliseconds
-
-        console.log(
-          "⏰ Transfer at:",
-          new Date(transferTime).toISOString(),
-          "vs Selection at:",
-          new Date(selectionTimestamp).toISOString()
-        );
-
-        if (transferTime > selectionTimestamp) {
-          console.log("✅ Found recent token purchase after selection!");
-          setPurchaseVerified(true);
-          return true;
-        }
+      if (!walletClient || !publicClient) {
+        throw new Error("Wallet not connected properly");
       }
 
-      setVerificationError(
-        "No token purchases found after plot selection. Please buy tokens on Zora first."
+      // Create ZoraService instance
+      const zoraService = new ZoraService();
+
+      // Create trade parameters for buying tokens with ETH
+      const tradeParams = zoraService.createBuyTradeParams(
+        selectedPlotOption.tokenAddress as Address,
+        parseEther(ethAmount),
+        address,
+        0.05 // 5% slippage
       );
-      return false;
+
+      // Execute the trade
+      const receipt = await zoraService.tradeCoin(
+        tradeParams,
+        walletClient,
+        walletClient.account!,
+        publicClient
+      );
+
+      // Log transaction success with safe serialization
+      console.log(
+        "✅ Token purchase successful! Transaction hash:",
+        receipt.transactionHash
+      );
+
+      // Record the vote
+      await handleRecordVote(ethAmount);
+
+      setPurchaseSuccess(true);
     } catch (error) {
-      console.error("❌ Error verifying token purchase:", error);
-      setVerificationError(
-        "Failed to verify token purchase. Please try again."
+      console.error("❌ Token purchase failed:", error);
+      setPurchaseError(
+        error instanceof Error ? error.message : "Purchase failed"
       );
-      return false;
     } finally {
-      setIsVerifyingPurchase(false);
+      setIsPurchasing(false);
     }
   };
 
-  const handleShowPreview = (optionIndex: number) => {
-    const option = plotOptions[optionIndex];
-    const preview = plotOptionPreviews?.[optionIndex] || option.preview || "";
-
-    if (preview.trim()) {
-      setPreviewModal({
-        isOpen: true,
-        optionIndex,
-        optionName: option.name,
-        preview,
-      });
-    }
-  };
-
-  const handleClosePreview = () => {
-    setPreviewModal({
-      isOpen: false,
-      optionIndex: null,
-      optionName: "",
-      preview: "",
-    });
-  };
-
-  const handleBuyOnZora = () => {
-    if (
-      selectedOption === null ||
-      !plotOptions?.[selectedOption]?.tokenAddress
-    ) {
-      return;
-    }
-
-    const selectedPlotOption = plotOptions[selectedOption];
-    const zoraUrl = `https://testnet.zora.co/coin/bsep:${selectedPlotOption.tokenAddress}`;
-
-    console.log("🔗 Redirecting to Zora for token purchase:", {
-      plotOption: selectedPlotOption,
-      zoraUrl,
-    });
-
-    // Open Zora in a new tab
-    window.open(zoraUrl, "_blank", "noopener,noreferrer");
-  };
-
-  const handleMarkAsVoted = async () => {
+  // Updated function to record vote after successful purchase
+  const handleRecordVote = async (ethAmountSpent: string) => {
     if (!currentUser || !storyId || !chapterId || selectedOption === null) {
       return;
-    }
-
-    // First verify that user purchased tokens after selecting the plot option
-    const isVerified = await verifyRecentPurchase();
-    if (!isVerified) {
-      return; // Verification failed, error message already set
     }
 
     try {
@@ -315,7 +269,7 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
         chapterId,
         selectedPlotOption.symbol,
         address as Address,
-        "0" // No ETH amount since buying happens on Zora
+        ethAmountSpent
       );
 
       // Mark as voted
@@ -323,14 +277,44 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
 
       // Call the callback if provided
       if (onVote) {
-        onVote(selectedOption, 0); // No ETH amount since buying happens on Zora
+        onVote(selectedOption, parseFloat(ethAmountSpent));
       }
 
       console.log("✅ Plot vote recorded successfully");
     } catch (error) {
       console.error("❌ Error recording plot vote:", error);
-      setVerificationError("Failed to record vote. Please try again.");
+      throw error;
     }
+  };
+
+  const handleShowPreview = (optionIndex: number) => {
+    const preview =
+      plotOptionPreviews?.[optionIndex] ||
+      plotOptions[optionIndex]?.preview ||
+      "";
+    setPreviewModal({
+      isOpen: true,
+      optionIndex,
+      optionName: plotOptions[optionIndex].name,
+      preview,
+    });
+  };
+
+  const handleClosePreview = () => {
+    setPreviewModal({
+      isOpen: false,
+      optionIndex: null,
+      optionName: "",
+      preview: "",
+    });
+  };
+
+  // Handle ETH amount change and estimate tokens
+  const handleAmountChange = (value: string) => {
+    setEthAmount(value);
+    // TODO: Add token estimation logic here
+    // This would require calling Zora's price estimation API
+    setEstimatedTokens("~estimate");
   };
 
   return (
@@ -428,8 +412,8 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
         </div>
       )}
 
-      {/* Verification Error Display */}
-      {verificationError && (
+      {/* Purchase Error Display */}
+      {purchaseError && (
         <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 rounded-md mb-3 border border-red-200 dark:border-red-900/30">
           <div className="flex items-start">
             <svg
@@ -444,13 +428,13 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
                 clipRule="evenodd"
               />
             </svg>
-            <p className="text-sm">❌ {verificationError}</p>
+            <p className="text-sm">❌ {purchaseError}</p>
           </div>
         </div>
       )}
 
-      {/* Purchase Verification Success */}
-      {purchaseVerified && selectedOption !== null && (
+      {/* Purchase Success */}
+      {purchaseSuccess && selectedOption !== null && (
         <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-md mb-3 border border-green-200 dark:border-green-900/30">
           <div className="flex items-start">
             <svg
@@ -466,20 +450,21 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
               />
             </svg>
             <p className="text-sm">
-              ✅ Token purchase verified! You bought $
-              {plotOptions[selectedOption].symbol} after selecting this option.
+              ✅ Successfully purchased ${plotOptions[selectedOption].symbol}{" "}
+              tokens and recorded your vote!
             </p>
           </div>
         </div>
       )}
 
-      {/* Verification in Progress */}
-      {isVerifyingPurchase && (
+      {/* Purchase in Progress */}
+      {isPurchasing && (
         <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-md mb-3 border border-blue-200 dark:border-blue-900/30">
           <div className="flex items-start">
             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-600 mr-2 mt-0.5 flex-shrink-0"></div>
             <p className="text-sm">
-              🔍 Verifying your token purchase on the blockchain...
+              🔄 Processing token purchase... Please confirm the transaction in
+              your wallet.
             </p>
           </div>
         </div>
@@ -597,14 +582,14 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
         ))}
       </div>
 
-      {/* Token Purchase Info */}
+      {/* Token Purchase Interface */}
       {userCanVote &&
         isVotingActive &&
         selectedOption !== null &&
         !hasVoted && (
-          <div className="mb-4 p-3 bg-parchment-50 dark:bg-dark-800 rounded-lg border border-parchment-200 dark:border-dark-700">
-            <h4 className="font-medium text-sm text-ink-900 dark:text-white mb-2">
-              🛒 Buy Plot Tokens
+          <div className="mb-4 p-4 bg-parchment-50 dark:bg-dark-800 rounded-lg border border-parchment-200 dark:border-dark-700">
+            <h4 className="font-medium text-sm text-ink-900 dark:text-white mb-3">
+              🛒 Purchase Plot Tokens
             </h4>
 
             {!plotOptions?.[selectedOption]?.tokenAddress ? (
@@ -629,21 +614,58 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                <div className="text-xs text-ink-600 dark:text-ink-400">
-                  💡 Click below to buy{" "}
-                  <strong>${plotOptions[selectedOption].symbol}</strong> tokens
-                  on Zora's platform
+              <div className="space-y-3">
+                {/* Amount Input */}
+                <div>
+                  <label className="block text-xs font-medium text-ink-600 dark:text-ink-400 mb-1">
+                    ETH Amount to Spend
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0.001"
+                      max="10"
+                      value={ethAmount}
+                      onChange={(e) => handleAmountChange(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-parchment-300 dark:border-dark-600 rounded-md bg-white dark:bg-dark-900 text-ink-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400"
+                      placeholder="0.001"
+                    />
+                    <div className="absolute inset-y-0 right-3 flex items-center">
+                      <span className="text-xs text-ink-500 dark:text-ink-400 font-medium">
+                        ETH
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center mt-1">
+                    <div className="flex gap-1">
+                      {["0.001", "0.01", "0.1"].map((amount) => (
+                        <button
+                          key={amount}
+                          onClick={() => handleAmountChange(amount)}
+                          className="px-2 py-1 text-xs bg-parchment-100 dark:bg-dark-700 text-ink-600 dark:text-ink-400 rounded hover:bg-parchment-200 dark:hover:bg-dark-600 transition-colors"
+                        >
+                          {amount}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-xs text-ink-500 dark:text-ink-400">
+                      ≈ {estimatedTokens} tokens
+                    </span>
+                  </div>
                 </div>
-                <div className="text-xs text-ink-500 dark:text-ink-500">
-                  🔗 Secure trading powered by Zora's advanced DEX
+
+                <div className="text-xs text-ink-600 dark:text-ink-400 space-y-1">
+                  <div>
+                    💡 Purchasing{" "}
+                    <strong>${plotOptions[selectedOption].symbol}</strong>{" "}
+                    tokens
+                  </div>
+                  <div>🗳️ Your tokens = your vote weight</div>
+                  <div>⚡ Direct trading powered by Zora</div>
                 </div>
               </div>
             )}
-
-            <p className="text-xs text-ink-500 dark:text-ink-400 mt-2">
-              📈 Buy any amount • PLOT tokens represent your vote weight
-            </p>
           </div>
         )}
 
@@ -657,30 +679,32 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
         </button>
       ) : selectedOption !== null &&
         plotOptions?.[selectedOption]?.tokenAddress ? (
-        <div className="space-y-2">
-          <button
-            onClick={handleBuyOnZora}
-            disabled={!userCanVote || !isVotingActive}
-            className={`w-full py-2.5 px-3 text-sm font-medium rounded-md transition-colors ${
-              !userCanVote || !isVotingActive
-                ? "bg-parchment-200 text-ink-500 dark:bg-dark-700 dark:text-ink-400 cursor-not-allowed"
-                : "bg-primary-600 hover:bg-primary-700 text-white dark:bg-primary-500 dark:hover:bg-primary-400"
-            }`}
-          >
-            🔗 Buy ${plotOptions[selectedOption].symbol} on Zora
-          </button>
-          <button
-            onClick={handleMarkAsVoted}
-            disabled={!userCanVote || !isVotingActive}
-            className={`w-full py-2 px-3 text-xs font-medium rounded-md transition-colors ${
-              !userCanVote || !isVotingActive
-                ? "bg-parchment-100 text-ink-400 dark:bg-dark-800 dark:text-ink-500 cursor-not-allowed"
-                : "bg-secondary-100 hover:bg-secondary-200 text-secondary-700 dark:bg-secondary-900/30 dark:hover:bg-secondary-900/50 dark:text-secondary-300"
-            }`}
-          >
-            📝 I bought tokens - record my vote
-          </button>
-        </div>
+        <button
+          onClick={handleDirectTokenPurchase}
+          disabled={
+            !userCanVote ||
+            !isVotingActive ||
+            isPurchasing ||
+            parseFloat(ethAmount) <= 0
+          }
+          className={`w-full py-2.5 px-3 text-sm font-medium rounded-md transition-colors ${
+            !userCanVote ||
+            !isVotingActive ||
+            isPurchasing ||
+            parseFloat(ethAmount) <= 0
+              ? "bg-parchment-200 text-ink-500 dark:bg-dark-700 dark:text-ink-400 cursor-not-allowed"
+              : "bg-primary-600 hover:bg-primary-700 text-white dark:bg-primary-500 dark:hover:bg-primary-400"
+          }`}
+        >
+          {isPurchasing ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+              Processing...
+            </div>
+          ) : (
+            `🛒 Buy ${ethAmount} ETH of $${plotOptions[selectedOption].symbol}`
+          )}
+        </button>
       ) : selectedOption !== null &&
         !plotOptions?.[selectedOption]?.tokenAddress ? (
         <button
@@ -699,8 +723,8 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
       )}
 
       <p className="text-xs text-ink-500 dark:text-ink-400 mt-2">
-        🗳️ Buy PLOT tokens on Zora to vote on story direction • The plot option
-        with most token purchases wins • Powered by Zora
+        🗳️ Purchase PLOT tokens directly to vote on story direction • The plot
+        option with most token purchases wins • Powered by Zora DEX
       </p>
 
       {/* Preview Modal */}

@@ -125,7 +125,7 @@ export class ZoraService {
         publicClient,
       });
 
-      logger.info("Trade executed successfully:", receipt);
+      logger.info("Trade executed successfully! Transaction hash:", receipt.transactionHash);
       return receipt;
     } catch (error) {
       logger.error("Trade failed:", error);
@@ -240,12 +240,21 @@ export class ZoraService {
   ): Promise<void> {
     const docRef = doc(db, "plotVotes", `chapter_${chapterId}`);
     const snap = await getDoc(docRef);
-    if (!snap.exists()) throw new Error("Chapter not found");
+    
+    if (!snap.exists()) {
+      logger.error(`Plot votes document not found for chapter: ${chapterId}`);
+      throw new Error(
+        `Chapter plot votes not initialized. This usually means the chapter was not properly published with plot tokens. Please contact support to fix this chapter's vote tracking.`
+      );
+    }
 
     const data = snap.data() as PlotVoteStats;
 
     if (!data[plotSymbol]) {
-      throw new Error(`Plot option ${plotSymbol} not found`);
+      logger.error(`Plot symbol ${plotSymbol} not found in chapter ${chapterId}. Available symbols:`, Object.keys(data));
+      throw new Error(
+        `Plot option "${plotSymbol}" not found. Available options: ${Object.keys(data).join(", ")}`
+      );
     }
 
     // Update vote counts
@@ -259,7 +268,7 @@ export class ZoraService {
 
     await setDoc(docRef, data);
 
-    logger.info(`Vote recorded for ${plotSymbol}: ${ethAmount} ETH`);
+    logger.info(`Vote recorded for ${plotSymbol}: ${ethAmount} ETH (voter: ${voter})`);
   }
 
   /**
@@ -290,7 +299,6 @@ export class ZoraService {
       recipient: senderAddress, // Same as sender by default
     };
   }
-
   /**
    * Helper method to create trade parameters for selling plot tokens for ETH
    */

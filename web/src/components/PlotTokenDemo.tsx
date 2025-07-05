@@ -125,7 +125,7 @@ const PlotTokenDemo: React.FC = () => {
               0x17CdB2a31E55669f3eb4185CBc702ad052A12A27
             </code>
           </p>
-          <p>��� Transactions are processed on Base Sepolia testnet</p>
+          <p>��� Transactions are processed on Base mainnet</p>
           <p>⚡ Powered by Zora's advanced DEX infrastructure</p>
         </div>
       </div>
