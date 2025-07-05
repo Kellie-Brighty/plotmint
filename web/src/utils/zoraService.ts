@@ -68,6 +68,7 @@ export class ZoraService {
         throw new Error("Missing required coin parameters.");
 
       logger.info(`Creating token: ${option.name} (${option.symbol})`);
+      console.log("walletClient", walletClient);
 
       const coin = await createCoin(
         {
