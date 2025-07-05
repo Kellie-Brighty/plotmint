@@ -5,7 +5,6 @@ import {
   DeployCurrency, 
   setApiKey,
   tradeCoin,
-  getCoin,
   type TradeParameters
 } from "@zoralabs/coins-sdk";
 import { base } from "viem/chains";
@@ -141,16 +140,24 @@ export class ZoraService {
    */
   public async getCoinInfo(tokenAddress: Address) {
     try {
-      const response = await getCoin({
-        address: tokenAddress,
-        chain: this.chainId, // Base mainnet
-      });
-
-      if (!response.data?.zora20Token) {
+      const apiUrl = `https://api-sdk.zora.engineering/coin?address=${tokenAddress}&chain=${this.chainId}`;
+      
+      logger.info(`Fetching coin info from: ${apiUrl}`);
+      
+      // Make the API request
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) {
+        throw new Error(`API request failed with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.zora20Token) {
         throw new Error("Token not found");
       }
 
-      const token = response.data.zora20Token;
+      const token = data.zora20Token;
 
       logger.info(`📊 Token info for ${tokenAddress}:`, {
         name: token.name,
@@ -164,10 +171,23 @@ export class ZoraService {
         address: token.address,
         name: token.name,
         symbol: token.symbol,
+        description: token.description,
         uniqueHolders: token.uniqueHolders || 0,
         totalSupply: token.totalSupply,
+        totalVolume: token.totalVolume,
+        volume24h: token.volume24h,
         marketCap: token.marketCap,
+        marketCapDelta24h: token.marketCapDelta24h,
+        chainId: token.chainId,
+        createdAt: token.createdAt,
         creator: token.creatorAddress,
+        creatorEarnings: token.creatorEarnings,
+        poolCurrencyToken: token.poolCurrencyToken,
+        platformReferrerAddress: token.platformReferrerAddress,
+        payoutRecipientAddress: token.payoutRecipientAddress,
+        creatorProfile: token.creatorProfile,
+        mediaContent: token.mediaContent,
+        uniswapV4PoolKey: token.uniswapV4PoolKey,
       };
     } catch (error) {
       logger.error("❌ Error getting coin info:", error);
