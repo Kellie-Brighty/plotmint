@@ -25,6 +25,9 @@ import DiscoverPage from "./pages/DiscoveryPage";
 import MarketplacePage from "./pages/MarketplacePage";
 import PlotVoting from "./components/PlotVoting";
 
+// Debug utilities
+import './utils/debugDuplicates';
+
 // Create a client for React Query
 const queryClient = new QueryClient()
 

@@ -15,6 +15,12 @@ interface PlotOption {
   currentValue: number; // Current token value in ETH
   totalVotes: number; // Total tokens purchased by readers
   isWinning: boolean;
+  // Real-time coin data
+  currentPrice?: number;
+  marketCap?: number;
+  volume24h?: number;
+  uniqueHolders?: number;
+  creatorProfile?: any;
 }
 
 interface WriterAsset {
@@ -25,6 +31,13 @@ interface WriterAsset {
   voteEndTime: Date;
   canSell: boolean;
   createdAt: Date;
+  // Voting period data
+  votingStatus?: any;
+  timeRemaining?: {
+    hours: number;
+    minutes: number;
+    seconds: number;
+  };
 }
 
 interface NFTCollection {
@@ -61,6 +74,8 @@ interface WriterAssetsProps {
   userId: string;
 }
 
+type TabType = "created" | "nfts" | "purchased";
+
 export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
   const { isConnected, address } = useWallet();
   const { getTokenPrice, getTokenSupply, getTokenBalance } = useCoinTrader();
@@ -70,16 +85,25 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
   const [nftCollections, setNftCollections] = useState<NFTCollection[]>([]);
   const [purchasedTokens, setPurchasedTokens] = useState<PurchasedToken[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"created" | "nfts" | "purchased">(
-    "created"
-  );
+  const [activeTab, setActiveTab] = useState<TabType>("created");
   const [_selectedAsset, setSelectedAsset] = useState<WriterAsset | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (userId && isConnected) {
       fetchAllAssets();
+
+      // Auto-refresh every 30 seconds for real-time data
+      const interval = setInterval(() => {
+        if (activeTab === "created") {
+          fetchWriterAssets();
+        }
+      }, 30000);
+
+      return () => clearInterval(interval);
     }
-  }, [userId, isConnected]);
+  }, [userId, isConnected, activeTab]);
 
   const fetchAllAssets = async () => {
     setLoading(true);
@@ -93,6 +117,18 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
       console.error("Error fetching assets:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshCreatedAssets = async () => {
+    setRefreshing(true);
+    try {
+      await fetchWriterAssets();
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error("Error refreshing assets:", error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -193,6 +229,23 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
               }
             }
 
+            // Get real-time coin information from Zora API
+            let coinInfo = null;
+            try {
+              coinInfo = await zoraService.getCoinInfo(
+                token.tokenAddress as Address
+              );
+              console.log(
+                `📊 Real-time coin info for ${token.symbol}:`,
+                coinInfo
+              );
+            } catch (error) {
+              console.warn(
+                `Could not fetch coin info for ${token.symbol}:`,
+                error
+              );
+            }
+
             // Get vote count from ZoraService if available
             let totalVotes = Number(tokenSupply) - creatorTokenBalance; // Subtract creator's allocation
             let isWinning = false;
@@ -208,6 +261,31 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
                 voteStats[token.symbol].totalVotes === maxVotes && maxVotes > 0;
             }
 
+            // Calculate current price in USD (get real ETH to USD rate)
+            let currentPriceUSD = 0;
+            let marketCapUSD = 0;
+            let volume24hUSD = 0;
+
+            if (coinInfo) {
+              // Get real ETH to USD rate
+              const ethToUsdRate = await getEthToUsdRate();
+
+              // If marketCap is available, calculate current price
+              if (coinInfo.marketCap && coinInfo.totalSupply) {
+                const marketCapETH = parseFloat(coinInfo.marketCap);
+                const totalSupplyNumber = parseFloat(coinInfo.totalSupply);
+                const pricePerTokenETH = marketCapETH / totalSupplyNumber;
+
+                currentPriceUSD = pricePerTokenETH * ethToUsdRate;
+                marketCapUSD = marketCapETH * ethToUsdRate;
+              }
+
+              if (coinInfo.volume24h) {
+                const volume24hETH = parseFloat(coinInfo.volume24h);
+                volume24hUSD = volume24hETH * ethToUsdRate;
+              }
+            }
+
             plotOptions.push({
               symbol: token.symbol,
               name: token.name,
@@ -216,10 +294,16 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
               currentValue: tokenPrice,
               totalVotes,
               isWinning,
+              // Real-time coin data from Zora API
+              currentPrice: currentPriceUSD > 0 ? currentPriceUSD : tokenPrice,
+              marketCap: marketCapUSD,
+              volume24h: volume24hUSD,
+              uniqueHolders: coinInfo?.uniqueHolders || 0,
+              creatorProfile: coinInfo?.creatorProfile,
             });
 
             console.log(
-              `✅ Token ${token.symbol}: price=${tokenPrice}, supply=${tokenSupply}, creatorBalance=${creatorTokenBalance}, votes=${totalVotes}, winning=${isWinning}`
+              `✅ Token ${token.symbol}: price=${tokenPrice}, supply=${tokenSupply}, creatorBalance=${creatorTokenBalance}, votes=${totalVotes}, winning=${isWinning}, marketCap=$${marketCapUSD}, volume24h=$${volume24hUSD}`
             );
           } catch (error) {
             console.error(
@@ -235,35 +319,56 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
               currentValue: 0,
               totalVotes: 0,
               isWinning: false,
+              currentPrice: 0,
+              marketCap: 0,
+              volume24h: 0,
+              uniqueHolders: 0,
             });
           }
         }
 
         if (plotOptions.length > 0) {
+          // Calculate voting period and restrictions
+          const createdAt = chapter.createdAt?.toDate() || new Date();
+          const votingPeriodEnd = new Date(
+            createdAt.getTime() + 24 * 60 * 60 * 1000
+          ); // 24 hours later
+          const now = new Date();
+          const isVotingActive = now < votingPeriodEnd;
+          const timeRemainingMs = votingPeriodEnd.getTime() - now.getTime();
+
+          const timeRemaining =
+            timeRemainingMs > 0
+              ? calculateRealTimeRemaining(votingPeriodEnd)
+              : undefined;
+
           assets.push({
             chapterId: chapter.id!,
             storyTitle: story.title,
             chapterTitle: chapter.title,
             plotOptions,
-            voteEndTime: chapter.voteEndTime
-              ? chapter.voteEndTime.toDate()
-              : new Date(Date.now() + 24 * 60 * 60 * 1000),
-            canSell: chapter.voteEndTime
-              ? new Date() > chapter.voteEndTime.toDate()
-              : false,
-            createdAt: chapter.createdAt
-              ? chapter.createdAt.toDate()
-              : new Date(),
+            voteEndTime: votingPeriodEnd,
+            canSell: !isVotingActive, // Can sell after voting period ends
+            createdAt,
+            votingStatus: {
+              isVotingActive,
+              timeRemainingMs,
+              votingPeriodEnd,
+            },
+            timeRemaining,
           });
 
           console.log(
-            `✅ Added asset for chapter "${chapter.title}" with ${plotOptions.length} plot options`
+            `✅ Added asset for chapter "${chapter.title}" with ${
+              plotOptions.length
+            } plot options, voting ends: ${votingPeriodEnd}, can sell: ${!isVotingActive}`
           );
         }
       }
 
       console.log("🎉 Final assets count:", assets.length);
       setWriterAssets(assets);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error("❌ Error fetching writer assets:", error);
     }
@@ -363,27 +468,137 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
     }
   };
 
-  const formatTimeRemaining = (endTime: Date) => {
-    const now = new Date();
-    const diff = endTime.getTime() - now.getTime();
-
-    if (diff <= 0) return "Voting ended";
-
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    return `${hours}h ${minutes}m remaining`;
+  const formatETH = (value: number) => {
+    return `${value.toFixed(6)} ETH`;
   };
 
-  const formatETH = (value: number) => {
-    return `${value.toFixed(4)} ETH`;
+  const formatUSD = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
   };
 
   const calculateTotalValue = (asset: WriterAsset) => {
-    return asset.plotOptions.reduce(
-      (total, option) =>
-        total + (option.allocatedTokens * option.currentValue) / 100,
-      0
+    return asset.plotOptions.reduce((total, option) => {
+      return total + (option.allocatedTokens * option.currentValue) / 100;
+    }, 0);
+  };
+
+  // Get real ETH to USD conversion rate
+  const getEthToUsdRate = async (): Promise<number> => {
+    try {
+      const response = await fetch(
+        "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
+      );
+      const data = await response.json();
+      return data.ethereum.usd;
+    } catch (error) {
+      console.warn("Failed to fetch ETH to USD rate, using fallback:", error);
+      return 3500; // Fallback rate
+    }
+  };
+
+  // Calculate real-time remaining time
+  const calculateRealTimeRemaining = (endTime: Date) => {
+    const now = new Date();
+    const timeRemaining = endTime.getTime() - now.getTime();
+
+    if (timeRemaining <= 0) {
+      return { hours: 0, minutes: 0, seconds: 0 };
+    }
+
+    const hours = Math.floor(timeRemaining / (1000 * 60 * 60));
+    const minutes = Math.floor(
+      (timeRemaining % (1000 * 60 * 60)) / (1000 * 60)
+    );
+    const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+
+    return { hours, minutes, seconds };
+  };
+
+  // Real-time countdown timer component
+  const VotingCountdown: React.FC<{
+    timeRemaining: { hours: number; minutes: number; seconds: number };
+  }> = ({ timeRemaining }) => {
+    const [time, setTime] = useState(timeRemaining);
+    const [isActive, setIsActive] = useState(true);
+
+    useEffect(() => {
+      // Initialize with the provided time
+      setTime(timeRemaining);
+      setIsActive(
+        timeRemaining.hours > 0 ||
+          timeRemaining.minutes > 0 ||
+          timeRemaining.seconds > 0
+      );
+    }, [timeRemaining]);
+
+    useEffect(() => {
+      let interval: NodeJS.Timeout | null = null;
+
+      if (
+        isActive &&
+        (time.hours > 0 || time.minutes > 0 || time.seconds > 0)
+      ) {
+        interval = setInterval(() => {
+          setTime((prevTime) => {
+            const totalSeconds =
+              prevTime.hours * 3600 + prevTime.minutes * 60 + prevTime.seconds;
+
+            if (totalSeconds <= 1) {
+              setIsActive(false);
+              return { hours: 0, minutes: 0, seconds: 0 };
+            }
+
+            const newTotalSeconds = totalSeconds - 1;
+            const newHours = Math.floor(newTotalSeconds / 3600);
+            const newMinutes = Math.floor((newTotalSeconds % 3600) / 60);
+            const newSeconds = newTotalSeconds % 60;
+
+            return {
+              hours: newHours,
+              minutes: newMinutes,
+              seconds: newSeconds,
+            };
+          });
+        }, 1000);
+      }
+
+      return () => {
+        if (interval) clearInterval(interval);
+      };
+    }, [isActive, time]);
+
+    const isEnded =
+      time.hours === 0 && time.minutes === 0 && time.seconds === 0;
+
+    return (
+      <div
+        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+          isEnded
+            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+            : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+        }`}
+      >
+        {isEnded ? (
+          <span className="flex items-center gap-1">
+            <span>✅</span>
+            <span>Voting Ended</span>
+          </span>
+        ) : (
+          <span className="flex items-center gap-1">
+            <span>⏰</span>
+            <span className="font-mono">
+              {time.hours.toString().padStart(2, "0")}:
+              {time.minutes.toString().padStart(2, "0")}:
+              {time.seconds.toString().padStart(2, "0")}
+            </span>
+          </span>
+        )}
+      </div>
     );
   };
 
@@ -449,12 +664,24 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Your Created Plot Options</h3>
-            <button
-              onClick={fetchWriterAssets}
-              className="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-            >
-              Refresh
-            </button>
+            <div className="flex items-center gap-3">
+              {lastUpdated && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Last updated: {lastUpdated.toLocaleTimeString()}
+                </p>
+              )}
+              <button
+                onClick={refreshCreatedAssets}
+                disabled={refreshing}
+                className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                  refreshing
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+                }`}
+              >
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
           </div>
 
           {writerAssets.length === 0 ? (
@@ -484,17 +711,15 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
                       </p>
                     </div>
                     <div className="text-right">
-                      <div
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                          asset.canSell
-                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                            : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                        }`}
-                      >
-                        {asset.canSell
-                          ? "Can Sell"
-                          : formatTimeRemaining(asset.voteEndTime)}
-                      </div>
+                      <VotingCountdown
+                        timeRemaining={
+                          asset.timeRemaining || {
+                            hours: 0,
+                            minutes: 0,
+                            seconds: 0,
+                          }
+                        }
+                      />
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         Total Value: {formatETH(calculateTotalValue(asset))}
                       </p>
@@ -518,11 +743,16 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
                               {option.symbol}
                             </p>
                           </div>
-                          {option.isWinning && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                              Leading
+                          <div className="flex flex-col items-end gap-1">
+                            {option.isWinning && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                Leading
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {option.uniqueHolders || 0} holders
                             </span>
-                          )}
+                          </div>
                         </div>
 
                         <div className="space-y-2 text-sm">
@@ -544,10 +774,32 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600 dark:text-gray-400">
-                              Token Value:
+                              Current Price:
                             </span>
                             <span className="font-medium">
-                              {formatETH(option.currentValue / 100)}
+                              {option.currentPrice
+                                ? formatUSD(option.currentPrice)
+                                : formatETH(option.currentValue / 100)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600 dark:text-gray-400">
+                              Market Cap:
+                            </span>
+                            <span className="font-medium">
+                              {option.marketCap
+                                ? formatUSD(option.marketCap)
+                                : "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600 dark:text-gray-400">
+                              24h Volume:
+                            </span>
+                            <span className="font-medium">
+                              {option.volume24h
+                                ? formatUSD(option.volume24h)
+                                : "N/A"}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -555,21 +807,47 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
                               Your Value:
                             </span>
                             <span className="font-medium">
-                              {formatETH(
-                                (option.allocatedTokens * option.currentValue) /
-                                  100
-                              )}
+                              {option.currentPrice
+                                ? formatUSD(
+                                    option.allocatedTokens * option.currentPrice
+                                  )
+                                : formatETH(
+                                    (option.allocatedTokens *
+                                      option.currentValue) /
+                                      100
+                                  )}
                             </span>
                           </div>
                         </div>
 
-                        {asset.canSell && (
+                        {/* Voting restrictions or sell button */}
+                        {asset.canSell ? (
                           <button
                             onClick={() => setSelectedAsset(asset)}
                             className="w-full mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                           >
                             Sell {option.symbol} Tokens
                           </button>
+                        ) : asset.timeRemaining ? (
+                          <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-yellow-800 dark:text-yellow-200">
+                                🚫 Selling restricted during voting
+                              </span>
+                              <VotingCountdown
+                                timeRemaining={asset.timeRemaining}
+                              />
+                            </div>
+                            <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                              You can sell after the 24-hour voting period ends
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Token not available for trading
+                            </p>
+                          </div>
                         )}
                       </div>
                     ))}

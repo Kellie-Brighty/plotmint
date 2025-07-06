@@ -5,6 +5,8 @@ import {
   collectChapter,
   hasUserCollectedChapter,
   createNotification,
+  getCorrectChapterId,
+  getChapterById,
 } from "../utils/storyService";
 // import { ZoraService } from "../utils/zoraService";
 // import type { PlotVoteStats } from "../utils/zora";
@@ -55,44 +57,72 @@ const ChapterActions: React.FC<ChapterActionsProps> = ({
 
   // Use chapter's plotTokens data
   useEffect(() => {
-    if (!hasChoicePoint || choiceOptions.length === 0) {
-      setPlotOptions([]);
-      return;
-    }
+    const fetchCorrectChapter = async () => {
+      if (!hasChoicePoint || choiceOptions.length === 0) {
+        setPlotOptions([]);
+        return;
+      }
 
-    // Check if chapter has plotTokens (tokens already deployed)
-    if (chapter?.plotTokens && chapter.plotTokens.length > 0) {
-      // Use the plotTokens from the chapter
-      const formattedOptions = chapter.plotTokens.map(
-        (token: any, index: number) => ({
-          name: choiceOptions[index] || token.name, // Use choice text as name
-          symbol: token.symbol,
-          tokenAddress: token.tokenAddress,
-          currentPrice: 0.001, // Mock price for now
-          totalVotes: 0, // Will be updated from vote subscription
+      let finalChapter = chapter;
+
+      // Get the correct chapter with tokens if available
+      if (storyId && chapter?.title) {
+        const correctChapterId = await getCorrectChapterId(
+          storyId,
+          chapter.title
+        );
+        if (correctChapterId && correctChapterId !== chapter.id) {
+          const correctChapter = await getChapterById(correctChapterId);
+          if (correctChapter) {
+            finalChapter = correctChapter;
+          }
+        }
+      }
+
+      // Check if chapter has plotTokens (tokens already deployed)
+      if (finalChapter?.plotTokens && finalChapter.plotTokens.length > 0) {
+        // Use the plotTokens from the chapter
+        const formattedOptions = finalChapter.plotTokens.map(
+          (token: any, index: number) => ({
+            name: choiceOptions[index] || token.name, // Use choice text as name
+            symbol: token.symbol,
+            tokenAddress: token.tokenAddress,
+            currentPrice: 0.001, // Mock price for now
+            totalVotes: 0, // Will be updated from vote subscription
+            volumeETH: 0,
+            preview: finalChapter?.plotOptionPreviews?.[index] || "", // Add preview text
+          })
+        );
+
+        console.log("Using plotTokens from chapter:", formattedOptions);
+        setPlotOptions(formattedOptions);
+      } else {
+        // No tokens deployed yet, show choice options without token addresses
+        console.log(
+          "No plotTokens found, showing choice options without tokens"
+        );
+        const emptyOptions = choiceOptions.map((choiceText, index) => ({
+          name: choiceText,
+          symbol: `PLOT${index + 1}`,
+          tokenAddress: undefined,
+          currentPrice: 0.001,
+          totalVotes: 0,
           volumeETH: 0,
-          preview: chapter?.plotOptionPreviews?.[index] || "", // Add preview text
-        })
-      );
+          preview: finalChapter?.plotOptionPreviews?.[index] || "", // Add preview text
+        }));
 
-      console.log("Using plotTokens from chapter:", formattedOptions);
-      setPlotOptions(formattedOptions);
-    } else {
-      // No tokens deployed yet, show choice options without token addresses
-      console.log("No plotTokens found, showing choice options without tokens");
-      const emptyOptions = choiceOptions.map((choiceText, index) => ({
-        name: choiceText,
-        symbol: `PLOT${index + 1}`,
-        tokenAddress: undefined,
-        currentPrice: 0.001,
-        totalVotes: 0,
-        volumeETH: 0,
-        preview: chapter?.plotOptionPreviews?.[index] || "", // Add preview text
-      }));
+        setPlotOptions(emptyOptions);
+      }
+    };
 
-      setPlotOptions(emptyOptions);
-    }
-  }, [hasChoicePoint, choiceOptions, chapter?.plotTokens]);
+    fetchCorrectChapter();
+  }, [
+    hasChoicePoint,
+    choiceOptions,
+    chapter?.plotTokens,
+    storyId,
+    chapter?.title,
+  ]);
 
   // Check if the user has already collected this chapter
   useEffect(() => {

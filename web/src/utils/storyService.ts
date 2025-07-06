@@ -16,6 +16,7 @@ import {
   QueryConstraint,
   limit as limitQuery,
   limit,
+  deleteDoc,
 } from "firebase/firestore";
 import { ZoraService } from "./zoraService";
 import type { PlotOption, PlotVoteStats } from "./zora";
@@ -2811,5 +2812,191 @@ export const fixAllChaptersPlotVotes = async (): Promise<void> => {
   } catch (error) {
     console.error("❌ Error in batch fix:", error);
     throw error;
+  }
+};
+
+/**
+ * Find and fix duplicate chapters for a story
+ * @param storyId - The story ID to check for duplicates
+ * @returns Promise with duplicate cleanup results
+ */
+export const findAndFixDuplicateChapters = async (
+  storyId: string
+): Promise<{
+  found: number;
+  fixed: number;
+  details: Array<{
+    title: string;
+    duplicates: Array<{
+      id: string;
+      hasTokens: boolean;
+      published: boolean;
+      createdAt: any;
+    }>;
+    action: string;
+  }>;
+}> => {
+  try {
+    console.log(`🔍 Checking for duplicate chapters in story: ${storyId}`);
+
+    const chaptersRef = collection(db, "chapters");
+    const chaptersQuery = query(
+      chaptersRef,
+      where("storyId", "==", storyId),
+      orderBy("createdAt", "asc")
+    );
+
+    const querySnapshot = await getDocs(chaptersQuery);
+    const chapters = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as ChapterData[];
+
+    // Group chapters by title to find duplicates
+    const chaptersByTitle: { [title: string]: ChapterData[] } = {};
+    chapters.forEach((chapter) => {
+      if (!chaptersByTitle[chapter.title]) {
+        chaptersByTitle[chapter.title] = [];
+      }
+      chaptersByTitle[chapter.title].push(chapter);
+    });
+
+    const duplicateInfo = [];
+    let totalFound = 0;
+    let totalFixed = 0;
+
+    for (const [title, titleChapters] of Object.entries(chaptersByTitle)) {
+      if (titleChapters.length > 1) {
+        totalFound += titleChapters.length - 1; // Count extras as duplicates
+
+        console.log(
+          `🔄 Found ${titleChapters.length} chapters with title: "${title}"`
+        );
+
+        // Sort by creation date, tokens, and published status to determine which to keep
+        const sorted = titleChapters.sort((a, b) => {
+          // Prefer chapters with tokens
+          const aHasTokens = (a.plotTokens?.length || 0) > 0;
+          const bHasTokens = (b.plotTokens?.length || 0) > 0;
+          if (aHasTokens && !bHasTokens) return -1;
+          if (!aHasTokens && bHasTokens) return 1;
+
+          // Prefer published chapters
+          if (a.published && !b.published) return -1;
+          if (!a.published && b.published) return 1;
+
+          // Finally, prefer newer chapters
+          const aTime = a.createdAt?.seconds || 0;
+          const bTime = b.createdAt?.seconds || 0;
+          return bTime - aTime;
+        });
+
+        const keepChapter = sorted[0];
+        const duplicates = sorted.slice(1);
+
+        console.log(
+          `✅ Keeping chapter: ${keepChapter.id} (tokens: ${
+            (keepChapter.plotTokens?.length || 0) > 0
+          }, published: ${keepChapter.published})`
+        );
+
+        // Delete duplicates
+        for (const duplicate of duplicates) {
+          console.log(
+            `🗑️ Deleting duplicate chapter: ${duplicate.id} (tokens: ${
+              (duplicate.plotTokens?.length || 0) > 0
+            }, published: ${duplicate.published})`
+          );
+          try {
+            await deleteDoc(doc(db, "chapters", duplicate.id!));
+            totalFixed++;
+            console.log(`✅ Deleted duplicate chapter: ${duplicate.id}`);
+          } catch (error) {
+            console.error(
+              `❌ Failed to delete duplicate chapter ${duplicate.id}:`,
+              error
+            );
+          }
+        }
+
+        duplicateInfo.push({
+          title,
+          duplicates: titleChapters.map((ch) => ({
+            id: ch.id!,
+            hasTokens: (ch.plotTokens?.length || 0) > 0,
+            published: ch.published,
+            createdAt: ch.createdAt,
+          })),
+          action: `Kept ${keepChapter.id}, deleted ${duplicates.length} duplicates`,
+        });
+      }
+    }
+
+    console.log(
+      `🎯 Duplicate cleanup completed: Found ${totalFound}, Fixed ${totalFixed}`
+    );
+
+    return {
+      found: totalFound,
+      fixed: totalFixed,
+      details: duplicateInfo,
+    };
+  } catch (error) {
+    console.error("❌ Error finding/fixing duplicate chapters:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get the correct chapter ID for reading (prefers chapters with tokens)
+ * @param storyId - The story ID
+ * @param chapterTitle - The chapter title to find
+ * @returns Promise with the correct chapter ID
+ */
+export const getCorrectChapterId = async (
+  storyId: string,
+  chapterTitle: string
+): Promise<string | null> => {
+  try {
+    const chaptersRef = collection(db, "chapters");
+    const chaptersQuery = query(
+      chaptersRef,
+      where("storyId", "==", storyId),
+      where("title", "==", chapterTitle),
+      where("published", "==", true)
+    );
+
+    const querySnapshot = await getDocs(chaptersQuery);
+    if (querySnapshot.empty) return null;
+
+    const chapters = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as ChapterData[];
+
+    // If only one chapter, return it
+    if (chapters.length === 1) {
+      return chapters[0].id!;
+    }
+
+    // If multiple chapters, prefer the one with tokens
+    const chapterWithTokens = chapters.find(
+      (ch) => (ch.plotTokens?.length || 0) > 0
+    );
+    if (chapterWithTokens) {
+      return chapterWithTokens.id!;
+    }
+
+    // Otherwise, return the newest one
+    const newest = chapters.sort((a, b) => {
+      const aTime = a.createdAt?.seconds || 0;
+      const bTime = b.createdAt?.seconds || 0;
+      return bTime - aTime;
+    })[0];
+
+    return newest.id!;
+  } catch (error) {
+    console.error("Error getting correct chapter ID:", error);
+    return null;
   }
 };

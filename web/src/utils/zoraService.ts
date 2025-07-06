@@ -1,11 +1,11 @@
 import { db } from "../utils/firebase";
 import { collection, doc, getDoc, setDoc } from "firebase/firestore";
-import { 
-  createCoin, 
-  DeployCurrency, 
+import {
+  createCoin,
+  DeployCurrency,
   setApiKey,
   tradeCoin,
-  type TradeParameters
+  type TradeParameters,
 } from "@zoralabs/coins-sdk";
 import { base } from "viem/chains";
 
@@ -125,7 +125,10 @@ export class ZoraService {
         publicClient,
       });
 
-      logger.info("Trade executed successfully! Transaction hash:", receipt.transactionHash);
+      logger.info(
+        "Trade executed successfully! Transaction hash:",
+        receipt.transactionHash
+      );
       return receipt;
     } catch (error) {
       logger.error("Trade failed:", error);
@@ -141,18 +144,18 @@ export class ZoraService {
   public async getCoinInfo(tokenAddress: Address) {
     try {
       const apiUrl = `https://api-sdk.zora.engineering/coin?address=${tokenAddress}&chain=${this.chainId}`;
-      
+
       logger.info(`Fetching coin info from: ${apiUrl}`);
-      
+
       // Make the API request
       const response = await fetch(apiUrl);
-      
+
       if (!response.ok) {
         throw new Error(`API request failed with status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (!data.zora20Token) {
         throw new Error("Token not found");
       }
@@ -200,13 +203,63 @@ export class ZoraService {
    * @param chapterId - ID of the chapter
    * @returns Winner information including token with most unique holders
    */
-  public async determineWinnerByHolders(chapterId: string): Promise<PlotWinner> {
+  public async determineWinnerByHolders(
+    chapterId: string
+  ): Promise<PlotWinner> {
     const docRef = doc(db, "plotVotes", `chapter_${chapterId}`);
     const snap = await getDoc(docRef);
     if (!snap.exists()) throw new Error("Chapter not found");
 
     const voteData = snap.data() as PlotVoteStats;
-    
+
+    // Check if voting period has ended for any token before determining winner
+    const tokenAddresses = Object.values(voteData).map(
+      (stats) => stats.tokenAddress
+    );
+
+    if (tokenAddresses.length > 0) {
+      try {
+        // Get the first token's creation time (all tokens in a chapter are created at the same time)
+        const firstTokenAddress = tokenAddresses[0];
+        const coinInfo = await this.getCoinInfo(firstTokenAddress);
+
+        if (coinInfo.createdAt) {
+          const createdTime = new Date(coinInfo.createdAt);
+          const currentTime = new Date();
+          const votingPeriodEnd = new Date(
+            createdTime.getTime() + 24 * 60 * 60 * 1000
+          ); // 24 hours after creation
+
+          // Check if voting period is still active
+          if (currentTime < votingPeriodEnd) {
+            const timeRemainingMs =
+              votingPeriodEnd.getTime() - currentTime.getTime();
+            const hours = Math.floor(timeRemainingMs / (1000 * 60 * 60));
+            const minutes = Math.floor(
+              (timeRemainingMs % (1000 * 60 * 60)) / (1000 * 60)
+            );
+
+            logger.info(
+              `❌ Cannot determine winner: Voting period still active. Time remaining: ${hours}h ${minutes}m`
+            );
+            throw new Error(
+              `Cannot determine winner yet. Voting period ends in ${hours} hours and ${minutes} minutes.`
+            );
+          }
+
+          logger.info(
+            `✅ Voting period ended at ${votingPeriodEnd.toISOString()}, proceeding with winner determination.`
+          );
+        }
+      } catch (apiError) {
+        logger.warn(
+          "Could not verify voting period end time, proceeding with caution:",
+          apiError
+        );
+        // If we can't get token creation time, we'll allow winner determination but log the warning
+      }
+    }
+
     let winner: PlotWinner | null = null;
     let maxHolders = 0;
 
@@ -237,16 +290,15 @@ export class ZoraService {
     }
 
     // Store winner in Firebase
-    await setDoc(
-      doc(db, "plotWinners", `chapter_${chapterId}`),
-      {
-        ...winner,
-        determinedAt: new Date().toISOString(),
-        determinationMethod: "unique_holders",
-      }
-    );
+    await setDoc(doc(db, "plotWinners", `chapter_${chapterId}`), {
+      ...winner,
+      determinedAt: new Date().toISOString(),
+      determinationMethod: "unique_holders",
+    });
 
-    logger.info(`Winner determined: ${winner.symbol} with ${maxHolders} unique holders`);
+    logger.info(
+      `Winner determined: ${winner.symbol} with ${maxHolders} unique holders`
+    );
     return winner;
   }
 
@@ -261,7 +313,7 @@ export class ZoraService {
   ): Promise<void> {
     const docRef = doc(db, "plotVotes", `chapter_${chapterId}`);
     const snap = await getDoc(docRef);
-    
+
     if (!snap.exists()) {
       logger.error(`Plot votes document not found for chapter: ${chapterId}`);
       throw new Error(
@@ -272,9 +324,14 @@ export class ZoraService {
     const data = snap.data() as PlotVoteStats;
 
     if (!data[plotSymbol]) {
-      logger.error(`Plot symbol ${plotSymbol} not found in chapter ${chapterId}. Available symbols:`, Object.keys(data));
+      logger.error(
+        `Plot symbol ${plotSymbol} not found in chapter ${chapterId}. Available symbols:`,
+        Object.keys(data)
+      );
       throw new Error(
-        `Plot option "${plotSymbol}" not found. Available options: ${Object.keys(data).join(", ")}`
+        `Plot option "${plotSymbol}" not found. Available options: ${Object.keys(
+          data
+        ).join(", ")}`
       );
     }
 
@@ -289,7 +346,9 @@ export class ZoraService {
 
     await setDoc(docRef, data);
 
-    logger.info(`Vote recorded for ${plotSymbol}: ${ethAmount} ETH (voter: ${voter})`);
+    logger.info(
+      `Vote recorded for ${plotSymbol}: ${ethAmount} ETH (voter: ${voter})`
+    );
   }
 
   /**

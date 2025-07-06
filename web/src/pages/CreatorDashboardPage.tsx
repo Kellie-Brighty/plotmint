@@ -21,6 +21,7 @@ import type { StoryData } from "../utils/storyService";
 import { serverTimestamp, type Timestamp } from "firebase/firestore";
 import ChapterNFTCreator from "../components/ChapterNFTCreator";
 import PublishingProgressModal from "../components/PublishingProgressModal";
+import { VotingCheckModal } from "../components/VotingCheckModal";
 import { ZoraService } from "../utils/zoraService";
 import type { PlotWinner } from "../utils/zora";
 
@@ -58,7 +59,9 @@ const CreatorDashboardPage = () => {
   const { getWalletClient, getPublicClient } = useWallet();
   const navigate = useNavigate();
   const [selectedStory, setSelectedStory] = useState<StoryData | null>(null);
-  const [selectedChapter, setSelectedChapter] = useState<ChapterData | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<ChapterData | null>(
+    null
+  );
   const [showNFTCreator, setShowNFTCreator] = useState(false);
   const [_isSaving, setIsSaving] = useState(false);
   const [_publishError, setPublishError] = useState<string | null>(null);
@@ -76,6 +79,25 @@ const CreatorDashboardPage = () => {
   const [winnerResults, setWinnerResults] = useState<{
     [chapterId: string]: PlotWinner;
   }>({});
+
+  // Voting check modal state
+  const [showVotingCheckModal, setShowVotingCheckModal] = useState(false);
+  const [selectedStoryForChapter, setSelectedStoryForChapter] =
+    useState<StoryData | null>(null);
+
+  // Add voting period tracking state
+  const [votingPeriods, setVotingPeriods] = useState<{
+    [chapterId: string]: {
+      isActive: boolean;
+      endTime: Date;
+      timeRemaining: {
+        hours: number;
+        minutes: number;
+        seconds: number;
+      };
+    };
+  }>({});
+
   const zoraService = new ZoraService();
 
   // Scroll to top when component mounts
@@ -85,6 +107,77 @@ const CreatorDashboardPage = () => {
       behavior: "smooth",
     });
   }, []);
+
+  // Check voting periods for published chapters
+  const checkVotingPeriods = async () => {
+    const updatedVotingPeriods: typeof votingPeriods = {};
+
+    for (const chapter of publishedChapters) {
+      if (chapter.plotTokens && chapter.plotTokens.length > 0) {
+        try {
+          // Get token creation time from the first token
+          const firstToken = chapter.plotTokens[0];
+          const coinInfo = await zoraService.getCoinInfo(
+            firstToken.tokenAddress
+          );
+
+          if (coinInfo.createdAt) {
+            const createdTime = new Date(coinInfo.createdAt);
+            const currentTime = new Date();
+            const votingPeriodEnd = new Date(
+              createdTime.getTime() + 24 * 60 * 60 * 1000
+            );
+            const isActive = currentTime < votingPeriodEnd;
+
+            if (isActive) {
+              const timeRemainingMs =
+                votingPeriodEnd.getTime() - currentTime.getTime();
+              const hours = Math.floor(timeRemainingMs / (1000 * 60 * 60));
+              const minutes = Math.floor(
+                (timeRemainingMs % (1000 * 60 * 60)) / (1000 * 60)
+              );
+              const seconds = Math.floor(
+                (timeRemainingMs % (1000 * 60)) / 1000
+              );
+
+              updatedVotingPeriods[chapter.id!] = {
+                isActive,
+                endTime: votingPeriodEnd,
+                timeRemaining: { hours, minutes, seconds },
+              };
+            } else {
+              updatedVotingPeriods[chapter.id!] = {
+                isActive: false,
+                endTime: votingPeriodEnd,
+                timeRemaining: { hours: 0, minutes: 0, seconds: 0 },
+              };
+            }
+          }
+        } catch (error) {
+          console.warn(
+            `Could not check voting period for chapter ${chapter.id}:`,
+            error
+          );
+        }
+      }
+    }
+
+    setVotingPeriods(updatedVotingPeriods);
+  };
+
+  // Update voting periods in real-time
+  useEffect(() => {
+    if (publishedChapters.length > 0) {
+      checkVotingPeriods();
+
+      // Update every second for real-time countdown
+      const interval = setInterval(() => {
+        checkVotingPeriods();
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [publishedChapters]);
 
   // Subscribe to real-time stories data
   useEffect(() => {
@@ -309,6 +402,16 @@ const CreatorDashboardPage = () => {
   ) => {
     if (!chapterId) return;
 
+    // Check if voting is still active for this chapter
+    const votingPeriod = votingPeriods[chapterId];
+    if (votingPeriod?.isActive) {
+      const { hours, minutes } = votingPeriod.timeRemaining;
+      alert(
+        `Cannot determine winner yet. Voting period is still active for ${hours} hours and ${minutes} minutes.`
+      );
+      return;
+    }
+
     setDeterminingWinner(chapterId);
 
     try {
@@ -322,7 +425,7 @@ const CreatorDashboardPage = () => {
         [chapterId]: winner,
       }));
 
-      console.log(`✅ Winner determined//  for ${chapterTitle}:`, winner);
+      console.log(`✅ Winner determined for ${chapterTitle}:`, winner);
 
       // You could show a success notification here
       alert(
@@ -543,11 +646,10 @@ const CreatorDashboardPage = () => {
                           View
                         </Link>
                         <button
-                          onClick={() =>
-                            navigate("/creator/new-chapter", {
-                              state: { storyData: story },
-                            })
-                          }
+                          onClick={() => {
+                            setSelectedStoryForChapter(story);
+                            setShowVotingCheckModal(true);
+                          }}
                           className="flex-1 py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors"
                         >
                           Add Chapter
@@ -1149,33 +1251,58 @@ const CreatorDashboardPage = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center space-x-3 justify-end">
-                                <Link
-                                  to={`/stories/${chapter.storyId}/${chapter.id}`}
-                                  className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300"
-                                >
-                                  View
-                                </Link>
                                 {chapter.published &&
                                   chapter.plotTokens &&
                                   chapter.plotTokens.length > 0 && (
                                     <>
                                       {!winnerResults[chapter.id!] ? (
-                                        <button
-                                          onClick={() =>
-                                            handleDetermineWinner(
-                                              chapter.id!,
-                                              chapter.title
-                                            )
-                                          }
-                                          disabled={
-                                            determiningWinner === chapter.id
-                                          }
-                                          className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 font-medium disabled:opacity-50"
-                                        >
-                                          {determiningWinner === chapter.id
-                                            ? "Determining..."
-                                            : "Determine Winner"}
-                                        </button>
+                                        <div className="flex flex-col items-end">
+                                          {votingPeriods[chapter.id!]
+                                            ?.isActive ? (
+                                            <div className="text-right">
+                                              <div className="text-yellow-600 dark:text-yellow-400 font-medium text-xs mb-1">
+                                                Voting Active
+                                              </div>
+                                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                {votingPeriods[
+                                                  chapter.id!
+                                                ].timeRemaining.hours
+                                                  .toString()
+                                                  .padStart(2, "0")}
+                                                :
+                                                {votingPeriods[
+                                                  chapter.id!
+                                                ].timeRemaining.minutes
+                                                  .toString()
+                                                  .padStart(2, "0")}
+                                                :
+                                                {votingPeriods[
+                                                  chapter.id!
+                                                ].timeRemaining.seconds
+                                                  .toString()
+                                                  .padStart(2, "0")}{" "}
+                                                remaining
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <button
+                                              onClick={() =>
+                                                handleDetermineWinner(
+                                                  chapter.id!,
+                                                  chapter.title
+                                                )
+                                              }
+                                              disabled={
+                                                determiningWinner === chapter.id
+                                              }
+                                              className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 font-medium disabled:opacity-50"
+                                            >
+                                              {determiningWinner === chapter.id
+                                                ? "Determining..."
+                                                : "Determine Winner"}
+                                            </button>
+                                          )}
+                                        </div>
                                       ) : (
                                         <span className="text-green-600 dark:text-green-400 font-medium text-xs">
                                           Winner:{" "}
@@ -1252,31 +1379,54 @@ const CreatorDashboardPage = () => {
                         </div>
 
                         <div className="flex space-x-2">
-                          <Link
-                            to={`/stories/${chapter.storyId}/${chapter.id}`}
-                            className="flex-1 text-center py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors"
-                          >
-                            View
-                          </Link>
                           {chapter.published &&
                             chapter.plotTokens &&
                             chapter.plotTokens.length > 0 && (
                               <>
                                 {!winnerResults[chapter.id!] ? (
-                                  <button
-                                    onClick={() =>
-                                      handleDetermineWinner(
-                                        chapter.id!,
-                                        chapter.title
-                                      )
-                                    }
-                                    disabled={determiningWinner === chapter.id}
-                                    className="flex-1 py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50"
-                                  >
-                                    {determiningWinner === chapter.id
-                                      ? "Determining..."
-                                      : "Determine Winner"}
-                                  </button>
+                                  votingPeriods[chapter.id!]?.isActive ? (
+                                    <div className="flex-1 text-center py-2 px-3 bg-yellow-600 text-white rounded-md text-sm font-medium">
+                                      <div className="font-medium">
+                                        Voting Active
+                                      </div>
+                                      <div className="text-xs opacity-90">
+                                        {votingPeriods[
+                                          chapter.id!
+                                        ].timeRemaining.hours
+                                          .toString()
+                                          .padStart(2, "0")}
+                                        :
+                                        {votingPeriods[
+                                          chapter.id!
+                                        ].timeRemaining.minutes
+                                          .toString()
+                                          .padStart(2, "0")}
+                                        :
+                                        {votingPeriods[
+                                          chapter.id!
+                                        ].timeRemaining.seconds
+                                          .toString()
+                                          .padStart(2, "0")}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() =>
+                                        handleDetermineWinner(
+                                          chapter.id!,
+                                          chapter.title
+                                        )
+                                      }
+                                      disabled={
+                                        determiningWinner === chapter.id
+                                      }
+                                      className="flex-1 py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50"
+                                    >
+                                      {determiningWinner === chapter.id
+                                        ? "Determining..."
+                                        : "Determine Winner"}
+                                    </button>
+                                  )
                                 ) : (
                                   <span className="flex-1 text-center py-2 px-3 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors">
                                     Winner: {winnerResults[chapter.id!].symbol}
@@ -1757,6 +1907,27 @@ const CreatorDashboardPage = () => {
           isOpen={showPublishingProgress}
           steps={publishingSteps}
         />
+
+        {/* Voting Check Modal */}
+        {selectedStoryForChapter && (
+          <VotingCheckModal
+            isOpen={showVotingCheckModal}
+            onClose={() => {
+              setShowVotingCheckModal(false);
+              setSelectedStoryForChapter(null);
+            }}
+            onProceed={() => {
+              navigate("/creator/new-chapter", {
+                state: { storyData: selectedStoryForChapter },
+              });
+              setShowVotingCheckModal(false);
+              setSelectedStoryForChapter(null);
+            }}
+            storyId={selectedStoryForChapter.id!}
+            storyTitle={selectedStoryForChapter.title}
+            creatorId={currentUser?.uid || ""}
+          />
+        )}
       </div>
     </div>
   );

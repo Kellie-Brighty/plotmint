@@ -17,6 +17,7 @@
     "@wagmi/core": "^2.17.3",
     "@walletconnect/modal": "^2.7.0",
     "@zoralabs/coins-sdk": "^0.2.8",
+    "dotenv": "^16.0.3",
     "firebase": "^11.9.0",
     "framer-motion": "^12.18.1",
     "heroicons": "^2.2.0",

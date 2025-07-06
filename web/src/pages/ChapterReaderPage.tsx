@@ -243,6 +243,15 @@ const ChapterReaderPage = () => {
       try {
         const fetchedChapter = await getChapterById(chapterId);
         if (fetchedChapter) {
+          console.log("🔍 ChapterReaderPage - Fetched chapter data:", {
+            chapterId: fetchedChapter.id,
+            chapterKeys: Object.keys(fetchedChapter),
+            hasPlotTokens: !!fetchedChapter.plotTokens,
+            plotTokens: fetchedChapter.plotTokens,
+            hasPlotOptions: !!fetchedChapter.plotOptions,
+            plotOptions: fetchedChapter.plotOptions,
+            fullChapter: fetchedChapter,
+          });
           setChapter(fetchedChapter);
         } else {
           setError("Chapter not found");

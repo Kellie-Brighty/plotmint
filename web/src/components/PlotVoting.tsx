@@ -69,6 +69,21 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
   const [hasVoted, setHasVoted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
 
+  // Debug log the plotOptions received
+  useEffect(() => {
+    console.log("🎯 PlotVoting Debug - Received props:", {
+      chapterId,
+      plotOptionsLength: plotOptions?.length || 0,
+      plotOptions: plotOptions?.map((option, index) => ({
+        index,
+        name: option.name,
+        symbol: option.symbol,
+        tokenAddress: option.tokenAddress,
+        hasTokenAddress: !!option.tokenAddress
+      }))
+    });
+  }, [plotOptions, chapterId]);
+
   // New state for direct token purchasing
   const [ethAmount, setEthAmount] = useState<string>("0.001"); // Default amount
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -706,12 +721,41 @@ const PlotVoting: React.FC<PlotVotingProps> = ({
           )}
         </button>
       ) : selectedOption !== null &&
-        !plotOptions?.[selectedOption]?.tokenAddress ? (
+        !plotOptions?.[selectedOption]?.tokenAddress &&
+        !plotOptions?.[selectedOption]?.symbol?.includes("PLOT") ? (
         <button
           disabled
           className="w-full py-2.5 px-3 text-sm font-medium rounded-md bg-parchment-200 text-ink-500 dark:bg-dark-700 dark:text-ink-400 cursor-not-allowed"
         >
           ⏳ Token Deploying...
+        </button>
+      ) : selectedOption !== null &&
+        plotOptions?.[selectedOption]?.symbol?.includes("PLOT") ? (
+        <button
+          onClick={handleDirectTokenPurchase}
+          disabled={
+            !userCanVote ||
+            !isVotingActive ||
+            isPurchasing ||
+            parseFloat(ethAmount) <= 0
+          }
+          className={`w-full py-2.5 px-3 text-sm font-medium rounded-md transition-colors ${
+            !userCanVote ||
+            !isVotingActive ||
+            isPurchasing ||
+            parseFloat(ethAmount) <= 0
+              ? "bg-parchment-200 text-ink-500 dark:bg-dark-700 dark:text-ink-400 cursor-not-allowed"
+              : "bg-primary-600 hover:bg-primary-700 text-white dark:bg-primary-500 dark:hover:bg-primary-400"
+          }`}
+        >
+          {isPurchasing ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+              Processing...
+            </div>
+          ) : (
+            `🛒 Buy ${ethAmount} ETH of $${plotOptions[selectedOption].symbol}`
+          )}
         </button>
       ) : (
         <button

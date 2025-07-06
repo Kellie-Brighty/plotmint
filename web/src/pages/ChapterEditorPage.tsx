@@ -25,6 +25,7 @@ import {
 import { serverTimestamp, type Timestamp } from "firebase/firestore";
 import ChapterNFTCreator from "../components/ChapterNFTCreator";
 import PublishingProgressModal from "../components/PublishingProgressModal";
+import { VotingCheckModal } from "../components/VotingCheckModal";
 
 interface ChapterData {
   title: string;
@@ -73,6 +74,7 @@ const ChapterEditorPage = () => {
   const [showPublishingProgress, setShowPublishingProgress] = useState(false);
   const [publishingSteps, setPublishingSteps] = useState<PublishingStep[]>([]);
   const [chapterNumber, setChapterNumber] = useState<number>(1);
+  const [showVotingCheckModal, setShowVotingCheckModal] = useState(false);
 
   const { currentUser } = useAuth();
   const { getWalletClient, getPublicClient, isConnected } = useWallet();
@@ -262,6 +264,32 @@ const ChapterEditorPage = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handlePublishClick = () => {
+    // Check if we have the minimum required content
+    if (!chapterData.title.trim() || !chapterData.content.trim()) {
+      setError("Please add both a title and content for your chapter");
+      return;
+    }
+
+    // Validate plot options
+    const filledOptions = chapterData.choiceOptions.filter(
+      (option) => option.trim().length > 0
+    );
+
+    if (filledOptions.length !== 2) {
+      setError("Please provide exactly two plot options for reader voting");
+      return;
+    }
+
+    // Show voting check modal first
+    setShowVotingCheckModal(true);
+  };
+
+  const handleVotingCheckProceed = () => {
+    setShowVotingCheckModal(false);
+    handlePublish();
   };
 
   const handlePublish = async () => {
@@ -710,7 +738,7 @@ const ChapterEditorPage = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={handlePublish}
+                  onClick={handlePublishClick}
                   disabled={isSaving}
                   className="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md disabled:opacity-50"
                 >
@@ -853,6 +881,20 @@ const ChapterEditorPage = () => {
         isOpen={showPublishingProgress}
         steps={publishingSteps}
       />
+
+      {/* Voting Check Modal */}
+      <AnimatePresence>
+        {showVotingCheckModal && (
+          <VotingCheckModal
+            isOpen={showVotingCheckModal}
+            onClose={() => setShowVotingCheckModal(false)}
+            onProceed={handleVotingCheckProceed}
+            storyId={storyData?.id || ""}
+            storyTitle={storyData?.title || ""}
+            creatorId={currentUser?.uid || ""}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
