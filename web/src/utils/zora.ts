@@ -51,6 +51,53 @@ export interface UserTokenHolding {
   currentValue: string; // Current market value in ETH
   profitLoss: string; // Profit/loss in ETH
   profitLossPercentage: number; // Profit/loss percentage
+  // Enhanced market data (now in USD)
+  marketCap?: string; // Market cap in USD
+  totalVolume?: string; // Total trading volume in USD
+  volume24h?: string; // 24h trading volume in USD
+  uniqueHolders?: number; // Number of unique holders
+  currentPrice?: string; // Current price per token in ETH
+  totalSupply?: string; // Total token supply
+  creatorProfile?: {
+    handle?: string;
+    avatar?: {
+      previewImage?: {
+        small?: string;
+        medium?: string;
+      };
+    };
+  };
+  // 24-hour voting period information
+  tokenCreatedAt?: string; // ISO timestamp when token was created
+  votingPeriodEnd?: string; // ISO timestamp when voting period ends (24h after creation)
+  votingTimeRemaining?: {
+    hours: number;
+    minutes: number;
+    seconds: number;
+    totalSeconds: number;
+    isActive: boolean; // true if still within 24h voting period
+  };
+  canSell?: boolean; // false during voting period
+}
+
+/**
+ * Voting period status for a chapter
+ */
+export interface ChapterVotingStatus {
+  chapterId: string;
+  tokenCreatedAt: string;
+  votingPeriodEnd: string;
+  isVotingActive: boolean;
+  timeRemaining: {
+    hours: number;
+    minutes: number;
+    seconds: number;
+    totalSeconds: number;
+  };
+  restrictions: {
+    canCreateNewChapter: boolean; // false for creator during voting
+    canSellTokens: boolean; // false for everyone during voting
+  };
 }
 
 /**
@@ -79,10 +126,9 @@ export interface TokenMarketStats {
  * User's complete token portfolio
  */
 export interface UserTokenPortfolio {
-  totalValue: string; // Total portfolio value in ETH
-  totalValueUSD?: string; // Total portfolio value in USD
-  totalInvested: string; // Total amount invested in ETH
-  totalProfitLoss: string; // Total profit/loss in ETH
+  totalValue: string; // Total portfolio value in USD
+  totalInvested: string; // Total amount invested in USD
+  totalProfitLoss: string; // Total profit/loss in USD
   totalProfitLossPercentage: number; // Total profit/loss percentage
   holdings: UserTokenHolding[]; // Individual token holdings
   lastUpdated: string; // Last update timestamp
