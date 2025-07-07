@@ -275,6 +275,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - 🌐 **[Live](https://dev-plotmint.web.app)**
 - 📹 **[Demo Video](https://your-video-link)**
+- 📹 **[Promotional Video](https://your-video-link)
 - 📄 **[Technical Paper](./docs/TECHNICAL_PAPER.md)**
 
 ---
