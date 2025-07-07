@@ -311,10 +311,10 @@ export const TokenHoldings: React.FC<TokenHoldingsProps> = ({}) => {
 
   const fetchTokenPortfolio = async () => {
     if (!address) return;
-
+    
     setLoading(true);
     setError(null);
-
+    
     try {
       console.log("🔍 Fetching token portfolio for address:", address);
       console.log("🔍 Address details:", {
@@ -324,7 +324,7 @@ export const TokenHoldings: React.FC<TokenHoldingsProps> = ({}) => {
         addressLowercase: address.toLowerCase(),
         addressUppercase: address.toUpperCase(),
       });
-
+      
       const userPortfolio = await tokenHoldingsService.getUserTokenPortfolio(
         address
       );
@@ -592,9 +592,9 @@ export const TokenHoldings: React.FC<TokenHoldingsProps> = ({}) => {
                       )}
                       <div>
                         <div className="flex items-center space-x-2">
-                          <h4 className="font-medium text-ink-900 dark:text-white">
-                            {holding.name}
-                          </h4>
+                        <h4 className="font-medium text-ink-900 dark:text-white">
+                          {holding.name}
+                        </h4>
                           <span className="px-2 py-1 bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 text-xs font-medium rounded">
                             {holding.symbol}
                           </span>
@@ -715,7 +715,7 @@ export const TokenHoldings: React.FC<TokenHoldingsProps> = ({}) => {
                       <p className="text-xs text-ink-600 dark:text-ink-400">
                         USD
                       </p>
-                    </div>
+                  </div>
 
                     {/* Your Investment */}
                     <div className="bg-parchment-50 dark:bg-dark-800 rounded-lg p-3">
@@ -748,22 +748,22 @@ export const TokenHoldings: React.FC<TokenHoldingsProps> = ({}) => {
                       <p className="text-xs text-ink-600 dark:text-ink-400 mb-1">
                         Profit/Loss
                       </p>
-                      <p
+                        <p
                         className={`text-lg font-semibold ${getPercentageColor(
-                          holding.profitLossPercentage
-                        )}`}
-                      >
-                        {formatETH(holding.profitLoss)}
-                      </p>
-                      <p
+                            holding.profitLossPercentage
+                          )}`}
+                        >
+                          {formatETH(holding.profitLoss)}
+                        </p>
+                        <p
                         className={`text-xs ${getPercentageColor(
-                          holding.profitLossPercentage
-                        )}`}
-                      >
-                        {formatPercentage(holding.profitLossPercentage)}
-                      </p>
+                            holding.profitLossPercentage
+                          )}`}
+                        >
+                          {formatPercentage(holding.profitLossPercentage)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
                   {/* Additional Volume Info */}
                   {holding.volume24h && parseFloat(holding.volume24h) > 0 && (

@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "./ui/Button";
 import { useAuth } from "../utils/AuthContext";
+import { usePWAInstall } from "../utils/usePWAInstall";
 import JoinPlotMintModal from "./auth/JoinPlotMintModal";
 import WalletConnect from "./WalletConnect";
+import logoImage from "../assets/logo.png";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -12,6 +14,7 @@ const Navbar = () => {
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { currentUser, logOut } = useAuth();
+  const { isInstallable, handleInstall } = usePWAInstall();
 
   // Close the dropdown when clicking outside
   useEffect(() => {
@@ -51,18 +54,21 @@ const Navbar = () => {
     }
   };
 
+  // Handle PWA install
+  const handlePWAInstall = async () => {
+    const success = await handleInstall();
+    if (success) {
+      console.log("PlotMint app installed successfully!");
+    }
+  };
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-dark-900 border-b border-parchment-200 dark:border-dark-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <span className="text-xl font-display font-bold text-primary-600 dark:text-primary-400">
-                Plot
-                <span className="text-secondary-600 dark:text-secondary-400">
-                  Mint
-                </span>
-              </span>
+              <img src={logoImage} alt="PlotMint" className="h-8 w-auto" />
             </Link>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-4">
               <Link
@@ -153,6 +159,33 @@ const Navbar = () => {
 
             <WalletConnect className="ml-2" />
 
+            {/* PWA Install Button */}
+            {isInstallable && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePWAInstall}
+                className="flex items-center"
+                title="Install PlotMint as an app"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+                  />
+                </svg>
+                Install App
+              </Button>
+            )}
+
             {currentUser && (
               <Link to="/creator/new-story">
                 <Button variant="primary" size="sm">
@@ -162,8 +195,35 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <div className="flex items-center sm:hidden">
+          {/* Mobile menu button and install button */}
+          <div className="flex items-center sm:hidden space-x-2">
+            {/* Mobile PWA Install Button */}
+            {isInstallable && (
+              <button
+                onClick={handlePWAInstall}
+                type="button"
+                className="inline-flex items-center justify-center p-2 rounded-md text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-200 focus:outline-none"
+                title="Install PlotMint as an app"
+              >
+                <span className="sr-only">Install app</span>
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+                  />
+                </svg>
+              </button>
+            )}
+
+            {/* Hamburger menu button */}
             <button
               onClick={toggleMenu}
               type="button"
@@ -263,7 +323,9 @@ const Navbar = () => {
                 >
                   Join PlotMint
                 </Button>
-                <WalletConnect className="w-full" />
+                <div className="mb-2">
+                  <WalletConnect className="w-full" />
+                </div>
               </>
             )}
           </div>

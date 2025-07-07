@@ -670,7 +670,7 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
                   Last updated: {lastUpdated.toLocaleTimeString()}
                 </p>
               )}
-              <button
+            <button
                 onClick={refreshCreatedAssets}
                 disabled={refreshing}
                 className={`px-3 py-1 text-sm rounded-lg transition-colors ${
@@ -680,7 +680,7 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
                 }`}
               >
                 {refreshing ? "Refreshing..." : "Refresh"}
-              </button>
+            </button>
             </div>
           </div>
 
@@ -744,11 +744,11 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
                             </p>
                           </div>
                           <div className="flex flex-col items-end gap-1">
-                            {option.isWinning && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                Leading
-                              </span>
-                            )}
+                          {option.isWinning && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              Leading
+                            </span>
+                          )}
                             <span className="text-xs text-gray-500 dark:text-gray-400">
                               {option.uniqueHolders || 0} holders
                             </span>
@@ -814,8 +814,8 @@ export const WriterAssets: React.FC<WriterAssetsProps> = ({ userId }) => {
                                 : formatETH(
                                     (option.allocatedTokens *
                                       option.currentValue) /
-                                      100
-                                  )}
+                                  100
+                              )}
                             </span>
                           </div>
                         </div>

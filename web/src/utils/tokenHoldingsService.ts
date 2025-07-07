@@ -435,9 +435,9 @@ export class TokenHoldingsService {
                       ? this.calculateVotingPeriod(coinInfo.createdAt)
                       : null;
 
-                    // Get story and chapter details
-                    const { storyData, chapterData } =
-                      await this.getStoryChapterInfo(chapterId);
+                  // Get story and chapter details
+                  const { storyData, chapterData } =
+                    await this.getStoryChapterInfo(chapterId);
 
                     // Calculate actual investment (still estimated, but better)
                     const actualInvestment =
@@ -452,24 +452,24 @@ export class TokenHoldingsService {
                       balanceNumber * parseFloat(currentPrice);
                     const currentValue = BigInt(
                       Math.floor(currentValueEth * 1e18)
-                    );
+                  );
 
-                    const holding: UserTokenHolding = {
-                      tokenAddress: voteStats.tokenAddress,
-                      symbol: coinInfo.symbol,
-                      name: coinInfo.name,
+                  const holding: UserTokenHolding = {
+                    tokenAddress: voteStats.tokenAddress,
+                    symbol: coinInfo.symbol,
+                    name: coinInfo.name,
                       balance: actualBalance,
                       balanceFormatted: balanceNumber.toFixed(4),
-                      storyId: storyData?.id || "",
-                      storyTitle: storyData?.title || "Unknown Story",
-                      chapterId: chapterId,
-                      chapterTitle: chapterData?.title || "Unknown Chapter",
+                    storyId: storyData?.id || "",
+                    storyTitle: storyData?.title || "Unknown Story",
+                    chapterId: chapterId,
+                    chapterTitle: chapterData?.title || "Unknown Chapter",
                       purchasePrice: this.formatEther(actualInvestment),
                       currentValue: this.formatEther(currentValue),
-                      profitLoss: this.formatEther(
+                    profitLoss: this.formatEther(
                         currentValue - actualInvestment
-                      ),
-                      profitLossPercentage: this.calculateProfitLossPercentage(
+                    ),
+                    profitLossPercentage: this.calculateProfitLossPercentage(
                         actualInvestment,
                         currentValue
                       ),
@@ -504,7 +504,7 @@ export class TokenHoldingsService {
                       `💼 Adding real holding to portfolio:`,
                       holding
                     );
-                    holdings.push(holding);
+                  holdings.push(holding);
                     totalInvested += actualInvestment;
                     totalCurrentValue += currentValue;
                   } else {
