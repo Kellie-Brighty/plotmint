@@ -201,7 +201,7 @@ VITE_PRIVY_APP_ID=your_privy_app_id
 ### **Quick Start**
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/plotmint
+git clone https://github.com/Kellie-Brighty/plotmint
 cd plotmint/web
 
 # Install dependencies
