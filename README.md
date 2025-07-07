@@ -225,6 +225,24 @@ bun run build
 
 ---
 
+## 📱 Progressive Web App
+![PWA Demo](assets/pwa.gif)
+PlotMint is available as a **Progressive Web App (PWA)**, offering a native app-like experience directly in your browser. Install PlotMint on your device for:
+
+- **Offline Reading**: Continue reading stories even without internet connection
+- **Push Notifications**: Get notified when new chapters are published
+- **Native Feel**: App-like interface with smooth animations and transitions
+- **Cross-Platform**: Works seamlessly on desktop, mobile, and tablet devices
+- **No App Store Required**: Install directly from your browser
+
+### Installation
+1. Visit [PlotMint](https://dev-plotmint.web.app) in your browser
+2. Look for the "Install" or "Add to Home Screen" prompt
+3. Follow your browser's installation instructions
+4. Launch PlotMint from your home screen or app drawer
+
+---
+
 ## 🎯 Impact & Metrics
 
 ### **Hackathon Goals Achieved**
