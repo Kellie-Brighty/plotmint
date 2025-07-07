@@ -32,8 +32,6 @@
  </a>
 </p>
 
-<!-- ![PlotMint Icon](./public/icon.png) -->
-
 **PlotMint** is a revolutionary decentralized storytelling platform where narratives evolve through tokenized plot choices. Readers purchase Zora-powered tokens to vote on story directions, creating liquid prediction markets for narrative outcomes while giving creators sustainable revenue streams.
 
 ## Plotmint Home Page
@@ -274,7 +272,7 @@ PlotMint is available as a **Progressive Web App (PWA)**, offering a native app-
 ## 📚 Documentation
 
 - 📄 **[Technical Paper](./docs/TECHNICAL_PAPER.md)** - Deep dive into tokenomics and architecture
-- 🐛 **[Bug Reports](https://github.com/yourusername/plotmint/issues)** - Report issues here
+- 🐛 **[Bug Reports](https://github.com/Kellie-Brighty/plotmint/issues)** - Report issues here
 
 ---
 
