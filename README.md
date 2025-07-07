@@ -227,6 +227,7 @@ bun run build
 
 ## 📱 Progressive Web App
 ![PWA Demo](assets/pwa.gif)
+
 PlotMint is available as a **Progressive Web App (PWA)**, offering a native app-like experience directly in your browser. Install PlotMint on your device for:
 
 - **Offline Reading**: Continue reading stories even without internet connection
