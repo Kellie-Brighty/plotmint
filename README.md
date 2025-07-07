@@ -36,10 +36,7 @@
 
 **PlotMint** is a revolutionary decentralized storytelling platform where narratives evolve through tokenized plot choices. Readers purchase Zora-powered tokens to vote on story directions, creating liquid prediction markets for narrative outcomes while giving creators sustainable revenue streams.
 
-## Plotmint Preview
-![PlotMint Demo](./assets/demo.gif)
-
----
+## Plotmint Home Page
 
 <p align="center">
  <a href="https://dev-plotmint.web.app">
@@ -50,7 +47,7 @@
    <strong>📄 Technical Paper</strong>
  </a>
  |
- <a href="https://your-video-link">
+ <a href="https://drive.google.com/file/d/1qfNSeLwWUzUXSszZ9wgfRDUB3AIa6-el/view?usp=drivesdk">
    <strong>🎥 Full Demo Video</strong>
  </a>
  <a href="https://eu.docworkspace.com/d/sIIDq49-zAsHMrsMG?sa=601.1037">
@@ -299,8 +296,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🔗 Quick Links
 
 - 🌐 **[Live](https://dev-plotmint.web.app)**
-- 📹 **[Demo Video](https://your-video-link)**
-- 📹 **[Promotional Video](https://your-video-link)**
+- 📹 **[Demo Video](https://drive.google.com/file/d/1qfNSeLwWUzUXSszZ9wgfRDUB3AIa6-el/view?usp=drivesdk)**
 - 📄 **[Technical Paper](./docs/TECHNICAL_PAPER.md)**
 
 ---
