@@ -54,7 +54,7 @@
    <strong>🎥 Full Demo Video</strong>
  </a>
  <a href="https://eu.docworkspace.com/d/sIIDq49-zAsHMrsMG?sa=601.1037">
-   <strong>🎥 Slide Deck</strong>
+   <strong>📊 Slide Deck</strong>
  </a>
 </p>
 
