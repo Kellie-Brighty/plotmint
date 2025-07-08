@@ -51,6 +51,11 @@
  <a href="https://eu.docworkspace.com/d/sIIDq49-zAsHMrsMG?sa=601.1037">
    <strong>📊 Slide Deck</strong>
  </a>
+  <a href="./docs/ROADMAP.md">
+   <strong>🗺️ Roadmap </strong>
+ </a>
+
+
 </p>
 
 <p align="center">
@@ -295,6 +300,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - 🌐 **[Live](https://dev-plotmint.web.app)**
 - 📹 **[Demo Video](https://drive.google.com/file/d/1qfNSeLwWUzUXSszZ9wgfRDUB3AIa6-el/view?usp=drivesdk)**
+- 📹 **[Promotional Video](https://www.canva.com/design/DAGr-oV6ZZY/1qZ3ZATKci071qFvMT6Qgw/watch?utlId=h543b2c8147)**
 - 📄 **[Technical Paper](./docs/TECHNICAL_PAPER.md)**
 
 ---
