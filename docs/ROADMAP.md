@@ -70,7 +70,6 @@
 We're building PlotMint in collaboration with our community. Have suggestions for features or partnerships? 
 
 - **GitHub**: Submit feature requests and bug reports
-- 
 ---
 
 *Last updated: July 2025*  
