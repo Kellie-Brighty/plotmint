@@ -255,7 +255,7 @@ PlotMint is available as a **Progressive Web App (PWA)**, offering a native app-
 ### **Technical Achievements**
 - 🔧 Full Zora Coin SDK integration with custom metadata
 - ⚡ Responsive Web3 UX with Privy wallet abstraction
-- 🎨 Production-ready UI with dark mode and mobile optimization
+- 🎨 Production-ready UI with mobile optimization
 - 📊 Real-time market data integration and price discovery
 
 ### **Market Potential**
